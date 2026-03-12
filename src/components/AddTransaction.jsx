@@ -74,7 +74,7 @@ function FieldLabel({ icon, text }) {
 }
 
 /* ─── Main component ─── */
-const ML_API = 'https://money-matters-backend-pc4i.onrender.com/';
+const ML_API = 'https://money-matters-backend-pc4i.onrender.com';
 
 export default function AddTransaction() {
     const [form] = Form.useForm();
