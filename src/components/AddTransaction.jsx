@@ -47,7 +47,7 @@ function normaliseCat(mlLabel) {
 /* ─── Keyword map: Indian terms → instant match (no API call needed) ─── */
 const KEYWORD_MAP = [
     { kw: ['swiggy', 'zomato', 'blinkit', 'zepto', 'instamart', 'biryani', 'dhaba', 'chai', 'maggi', 'dominos', 'kfc', 'mcdonalds', 'pizza', 'burger', 'restaurant', 'cafe', 'lunch', 'dinner', 'breakfast'], cat: 'food' },
-    { kw: ['amazon', 'flipkart', 'myntra', 'ajio', 'meesho', 'nykaa', 'mall', 'clothes', 'shirt', 'shoes', 'jeans', 'dress', 'watch', 'jewellery'], cat: 'shopping' },
+    { kw: ['amazon', 'flipkart', 'myntra', 'ajio', 'meesho', 'nykaa', 'mall', 'clothes', 'shirt', 'shoes', 'jeans', 'dress', 'watch', 'jewellery', 'laptop', 'mobile', 'phone', 'tablet', 'headphones', 'earphones', 'keyboard', 'mouse', 'charger', 'smartwatch', 'iphone', 'samsung', 'oneplus', 'redmi', 'realme'], cat: 'shopping' },
     { kw: ['ola', 'uber', 'rapido', 'metro', 'bus', 'rick', 'rickshaw', 'cab', 'petrol', 'diesel', 'toll', 'irctc', 'indigo', 'spicejet', 'flight'], cat: 'transport' },
     { kw: ['jio', 'airtel', 'bsnl', 'vi', 'recharge', 'broadband', 'bijli', 'electricity', 'water bill', 'gas bill'], cat: 'utilities' },
     { kw: ['netflix', 'hotstar', 'disney', 'spotify', 'youtube premium', 'prime video', 'zee5', 'crunchyroll', 'notion', 'discord', 'chatgpt', 'openai', 'github', 'adobe'], cat: 'subscriptions' },
