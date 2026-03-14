@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Row, Col, Tag, Tabs, message, Spin, Empty } from 'antd';
 import {
     AreaChart, Area, BarChart, Bar,
@@ -106,6 +106,10 @@ const MetricCard = ({ label, value, sub, iconBg, iconColor, icon, changeType, ch
 /* ─── Overview Tab ─── */
 const OverviewTab = ({ txns, loading, onRefresh }) => {
     const now = new Date();
+    const [advice, setAdvice] = useState('');
+    const [adviceLoading, setAdviceLoading] = useState(false);
+    const [adviceError, setAdviceError] = useState('');
+    const cacheRef = useRef({});
 
     const thisMonth = txns.filter(t => {
         const d = new Date(t.date);
@@ -131,6 +135,42 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
     const trends = computeTrends(txns);
     const catBreakdown = computeCatBreakdown(thisMonth.length ? thisMonth : txns);
     const recentTxns = txns.slice(0, 8);
+
+    // Build expenses dict for AI advisor (category key → amount)
+    const catMap = {};
+    txns.filter(t => t.type === 'debit').forEach(t => {
+        catMap[t.category] = (catMap[t.category] || 0) + Number(t.amount);
+    });
+
+    const getAdvice = async () => {
+        if (!catMap || Object.keys(catMap).length === 0) {
+            message.warning('Add some expense transactions first.');
+            return;
+        }
+        const cacheKey = JSON.stringify(catMap);
+        if (cacheRef.current[cacheKey]) {
+            setAdvice(cacheRef.current[cacheKey]);
+            return;
+        }
+        setAdviceLoading(true);
+        setAdviceError('');
+        try {
+            const API = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+            const res = await fetch(`${API}/get-advice`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ expenses: catMap }),
+            });
+            if (!res.ok) throw new Error(`${res.status}`);
+            const data = await res.json();
+            cacheRef.current[cacheKey] = data.advice;
+            setAdvice(data.advice);
+        } catch {
+            setAdviceError('Backend not reachable — start the backend server first.');
+        } finally {
+            setAdviceLoading(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -236,60 +276,75 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
                     </div>
                 </Col>
 
-                {/* Smart Insights — computed from real data */}
+                {/* AI Financial Advisor */}
                 <Col xs={24} lg={8}>
-                    <div className="mm-card" style={{ height: '100%', padding: '18px 0 16px' }}>
-                        <div className="mm-card-header" style={{ padding: '0 22px 14px' }}>
+                    <div className="mm-card" style={{ height: '100%', padding: '18px 0 16px', display: 'flex', flexDirection: 'column' }}>
+                        {/* Header */}
+                        <div className="mm-card-header" style={{ padding: '0 22px 14px', borderBottom: '1px solid #f2f4f7' }}>
                             <div>
-                                <div className="mm-card-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <BulbOutlined style={{ color: '#f7c94b', fontSize: 15 }} />
-                                    Smart Insights
+                                <div className="mm-card-title" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                                    <span style={{ fontSize: 15 }}>✦</span> AI Advisor
                                 </div>
-                                <div className="mm-card-subtitle">Based on your transactions</div>
+                                <div className="mm-card-subtitle">Finance LLaMA · LLaMA-3-8B + LoRA</div>
                             </div>
+                            <button
+                                onClick={getAdvice}
+                                disabled={adviceLoading || Object.keys(catMap).length === 0}
+                                style={{
+                                    background: adviceLoading ? '#f5f3ff' : '#6c63ff',
+                                    color: adviceLoading ? '#6c63ff' : '#fff',
+                                    border: 'none', borderRadius: 8, padding: '5px 13px',
+                                    fontSize: 12, fontWeight: 600, cursor: adviceLoading ? 'not-allowed' : 'pointer',
+                                    transition: 'all 0.2s', whiteSpace: 'nowrap',
+                                }}
+                            >
+                                {adviceLoading ? '...' : advice ? '↺ Refresh' : 'Get Advice'}
+                            </button>
                         </div>
-                        <div style={{ padding: '0 14px' }}>
-                            {txns.length === 0 ? (
-                                <Empty description="Add transactions to see insights" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '30px 0' }} />
-                            ) : (
-                                <>
-                                    {/* Top spend category */}
-                                    {catBreakdown[0] && (
-                                        <div className="mm-insight-item">
-                                            <div className="mm-insight-header">
-                                                <span className="mm-insight-badge" style={{ background: catBg(Object.entries(CAT_META).find(([, v]) => v.label === catBreakdown[0].name)?.[0] ?? 'other') }}>
-                                                    {catIcon(Object.entries(CAT_META).find(([, v]) => v.label === catBreakdown[0].name)?.[0] ?? 'other')}
-                                                </span>
-                                                <span className="mm-insight-label">Top Spend: {catBreakdown[0].name}</span>
-                                            </div>
-                                            <p className="mm-insight-text">
-                                                You spent ₹{catBreakdown[0].value.toLocaleString('en-IN')} on {catBreakdown[0].name} this period — your highest category.
-                                            </p>
-                                            <div className="mm-insight-footer">
-                                                <span className="mm-impact-pill" style={{ background: '#fff4e6', color: '#b45309' }}>⚠️ Watch this</span>
-                                            </div>
+
+                        {/* Body */}
+                        <div style={{ padding: '14px 22px 0', flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {adviceLoading && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#f5f3ff', borderRadius: 10 }}>
+                                    <Spin size="small" />
+                                    <span style={{ fontSize: 12, color: '#6c63ff' }}>Analyzing your spending… (first run: 30-60s)</span>
+                                </div>
+                            )}
+
+                            {!adviceLoading && adviceError && (
+                                <div style={{ padding: '10px 14px', background: '#fff1f3', borderRadius: 10, borderLeft: '3px solid #f87171' }}>
+                                    <div style={{ fontSize: 12, color: '#c01048', fontWeight: 600, marginBottom: 2 }}>Backend not running</div>
+                                    <div style={{ fontSize: 11, color: '#e11d48' }}>Run: <code style={{ background: '#fce7f3', padding: '1px 5px', borderRadius: 4 }}>uvicorn src.api:app</code></div>
+                                </div>
+                            )}
+
+                            {!adviceLoading && !adviceError && advice && (
+                                <div style={{ padding: '12px 14px', background: '#f5f3ff', borderRadius: 10, borderLeft: '3px solid #6c63ff' }}>
+                                    <div style={{ fontSize: 12, color: '#4c1d95', fontWeight: 600, marginBottom: 5 }}>💡 AI Insight</div>
+                                    <p style={{ fontSize: 12.5, color: '#3730a3', lineHeight: 1.65, margin: 0 }}>{advice}</p>
+                                </div>
+                            )}
+
+                            {!adviceLoading && !adviceError && !advice && (
+                                txns.length === 0
+                                    ? <Empty description="Add transactions first" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '20px 0' }} />
+                                    : (
+                                        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                                            <div style={{ fontSize: 28, marginBottom: 6 }}>✦</div>
+                                            <div style={{ fontSize: 12, color: '#98a2b3' }}>Click "Get Advice" for AI-powered insights on your spending patterns.</div>
                                         </div>
-                                    )}
-                                    {/* Savings insight */}
-                                    <div className="mm-insight-item">
-                                        <div className="mm-insight-header">
-                                            <span className="mm-insight-badge" style={{ background: '#ecfdf3' }}>🏆</span>
-                                            <span className="mm-insight-label">
-                                                {netBalance >= 0 ? 'Savings Positive' : 'Spending Alert'}
-                                            </span>
-                                        </div>
-                                        <p className="mm-insight-text">
-                                            {netBalance >= 0
-                                                ? `You are ₹${netBalance.toLocaleString('en-IN')} in surplus overall. Great financial discipline!`
-                                                : `You are spending ₹${Math.abs(netBalance).toLocaleString('en-IN')} more than you earn. Log income to track accurately.`}
-                                        </p>
-                                        <div className="mm-insight-footer">
-                                            <span className="mm-impact-pill" style={{ background: netBalance >= 0 ? '#ecfdf3' : '#fff1f3', color: netBalance >= 0 ? '#065f46' : '#c01048' }}>
-                                                {netBalance >= 0 ? '✅ Positive' : '🔴 Action needed'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </>
+                                    )
+                            )}
+
+                            {/* Spending pills */}
+                            {Object.keys(catMap).length > 0 && !adviceLoading && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 'auto', paddingTop: 8 }}>
+                                    {Object.entries(catMap).slice(0, 4).map(([cat, amt]) => (
+                                        <span key={cat} style={{ background: '#f5f3ff', borderRadius: 20, padding: '2px 10px', fontSize: 11, color: '#6c63ff', fontWeight: 500 }}>
+                                            {catLabel(cat)}: ₹{Math.round(amt).toLocaleString('en-IN')}
+                                        </span>
+                                    ))}
+                                </div>
                             )}
                         </div>
                     </div>

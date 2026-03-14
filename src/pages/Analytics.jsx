@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Select, Empty, Spin, message } from 'antd';
+import { Row, Col, Select, Empty, Spin, message, Button } from 'antd';
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
     Cell, PieChart, Pie, Legend, LineChart, Line, CartesianGrid,
@@ -156,6 +156,9 @@ export default function Analytics() {
     const now = new Date();
     const [heatmapYear, setHeatmapYear] = useState(now.getFullYear());
     const [heatmapMonth, setHeatmapMonth] = useState(now.getMonth());
+    const [advice, setAdvice] = useState('');
+    const [adviceLoading, setAdviceLoading] = useState(false);
+    const [adviceError, setAdviceError] = useState('');
 
     const fetchTxns = useCallback(async () => {
         setLoading(true);
@@ -169,6 +172,31 @@ export default function Analytics() {
     }, []);
 
     useEffect(() => { fetchTxns(); }, [fetchTxns]);
+
+    const getAdvice = useCallback(async (expenses) => {
+        if (!expenses || Object.keys(expenses).length === 0) {
+            message.warning('No expense data found to generate advice.');
+            return;
+        }
+        setAdviceLoading(true);
+        setAdviceError('');
+        try {
+            const API = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+            const res = await fetch(`${API}/get-advice`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ expenses }),
+            });
+            if (!res.ok) throw new Error(`Server error ${res.status}`);
+            const data = await res.json();
+            setAdvice(data.advice);
+        } catch (err) {
+            setAdviceError('Could not connect to AI Advisor. Make sure the backend is running.');
+            message.error('AI Advisor unavailable');
+        } finally {
+            setAdviceLoading(false);
+        }
+    }, []);
 
     /* ── Monthly comparison (last 6 months) ── */
     const months6 = lastNMonths(6);
@@ -367,6 +395,67 @@ export default function Analytics() {
                             </div>
                         )}
                     </SectionCard>
+                </Col>
+            </Row>
+
+            {/* Row 4: AI Advisor */}
+            <Row gutter={[18, 18]} style={{ marginTop: 18, marginBottom: 32 }}>
+                <Col xs={24}>
+                    <div className="mm-card" style={{ padding: '20px 24px 22px' }}>
+                        {/* Header */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+                            <div>
+                                <div style={{ fontSize: 14.5, fontWeight: 700, color: '#101828', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span style={{ color: '#6c63ff' }}>✦</span> AI Advisor
+                                </div>
+                                <div style={{ fontSize: 12, color: '#98a2b3', marginTop: 2 }}>Finance LLaMA · LLaMA-3-8B + LoRA · personalized from your transactions</div>
+                            </div>
+                            <Button
+                                onClick={() => getAdvice(catMap)}
+                                loading={adviceLoading}
+                                disabled={Object.keys(catMap).length === 0}
+                                style={{ background: '#6c63ff', border: 'none', color: '#fff', fontWeight: 600, borderRadius: 8, height: 34, paddingInline: 16, fontSize: 13 }}
+                            >
+                                {advice ? '↺ New Advice' : 'Get Advice'}
+                            </Button>
+                        </div>
+
+                        {/* States */}
+                        {adviceLoading && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#f5f3ff', borderRadius: 10 }}>
+                                <Spin size="small" />
+                                <span style={{ fontSize: 13, color: '#6c63ff' }}>Analyzing your spending… first run may take 30–60s</span>
+                            </div>
+                        )}
+                        {!adviceLoading && adviceError && (
+                            <div style={{ padding: '12px 16px', background: '#fff1f3', borderRadius: 10, borderLeft: '3px solid #f87171' }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: '#c01048' }}>Backend not running</div>
+                                <div style={{ fontSize: 11.5, color: '#e11d48', marginTop: 2 }}>Run: <code style={{ background: '#fce7f3', padding: '1px 6px', borderRadius: 4 }}>uvicorn src.api:app --port 8000</code></div>
+                            </div>
+                        )}
+                        {!adviceLoading && !adviceError && advice && (
+                            <div style={{ padding: '14px 18px', background: '#f5f3ff', borderRadius: 10, borderLeft: '3px solid #6c63ff' }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#4c1d95', marginBottom: 6 }}>💡 AI Insight</div>
+                                <p style={{ fontSize: 13, color: '#3730a3', lineHeight: 1.7, margin: 0 }}>{advice}</p>
+                            </div>
+                        )}
+                        {!adviceLoading && !adviceError && !advice && (
+                            <div style={{ padding: '16px', background: '#fafafa', borderRadius: 10, border: '1px dashed #e4e7ec', textAlign: 'center' }}>
+                                <div style={{ fontSize: 12, color: '#98a2b3' }}>Click "Get Advice" to generate personalized financial insights based on your spending.</div>
+                            </div>
+                        )}
+
+                        {/* Category pills */}
+                        {Object.keys(catMap).length > 0 && (
+                            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 14 }}>
+                                {Object.entries(catMap).slice(0, 6).map(([cat, amt]) => (
+                                    <span key={cat} style={{ background: '#f5f3ff', borderRadius: 20, padding: '3px 11px', fontSize: 11, color: '#6c63ff', fontWeight: 500 }}>
+                                        {catLabel(cat)}: {INR(amt)}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </Col>
             </Row>
         </div>
