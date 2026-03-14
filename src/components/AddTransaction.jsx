@@ -46,13 +46,13 @@ function normaliseCat(mlLabel) {
 
 /* ─── Keyword map: Indian terms → instant match (no API call needed) ─── */
 const KEYWORD_MAP = [
-    { kw: ['swiggy', 'zomato', 'blinkit', 'zepto', 'instamart', 'biryani', 'dhaba', 'chai', 'maggi', 'dominos', 'kfc', 'mcdonalds', 'pizza', 'burger', 'restaurant', 'cafe', 'lunch', 'dinner', 'breakfast'], cat: 'food' },
-    { kw: ['amazon', 'flipkart', 'myntra', 'ajio', 'meesho', 'nykaa', 'mall', 'clothes', 'shirt', 'shoes', 'jeans', 'dress', 'watch', 'jewellery', 'laptop', 'mobile', 'phone', 'tablet', 'headphones', 'earphones', 'keyboard', 'mouse', 'charger', 'smartwatch', 'iphone', 'samsung', 'oneplus', 'redmi', 'realme'], cat: 'shopping' },
-    { kw: ['ola', 'uber', 'rapido', 'metro', 'bus', 'rick', 'rickshaw', 'cab', 'petrol', 'diesel', 'toll', 'irctc', 'indigo', 'spicejet', 'flight'], cat: 'transport' },
-    { kw: ['jio', 'airtel', 'bsnl', 'vi', 'recharge', 'broadband', 'bijli', 'electricity', 'water bill', 'gas bill'], cat: 'utilities' },
-    { kw: ['netflix', 'hotstar', 'disney', 'spotify', 'youtube premium', 'prime video', 'zee5', 'crunchyroll', 'notion', 'discord', 'chatgpt', 'openai', 'github', 'adobe'], cat: 'subscriptions' },
-    { kw: ['pvr', 'inox', 'bookmyshow', 'movie', 'concert', 'gaming', 'pub', 'bar', 'club', 'comedy'], cat: 'entertainment' },
-    { kw: ['hospital', 'doctor', 'clinic', 'pharmacy', 'medplus', 'apollo', 'medicine', 'tablet', 'chemist', 'dentist', 'diagnostic', 'lab test', 'birth', 'delivery', 'surgery', 'nursing home', 'maternity', 'checkup', 'health bill', 'blood test', 'x-ray', 'xray', 'scan', 'vaccine', 'vaccination', 'injection', 'icu'], cat: 'health' },
+    { kw: ['swiggy', 'zomato', 'blinkit', 'zepto', 'instamart', 'biryani', 'dhaba', 'chai', 'maggi', 'dominos', 'kfc', 'mcdonalds', 'pizza', 'burger', 'restaurant', 'cafe', 'lunch', 'dinner', 'breakfast', 'sabzi', 'milk', 'doodh', 'bread', 'eggs', 'anda', 'fruits', 'vegetables', 'meat', 'chicken', 'mutton', 'fish', 'coffee', 'grocery', 'bigbasket', 'paneer', 'rashan', 'ration', 'dal', 'chawal', 'rice', 'atta', 'flour', 'juice', 'lassi', 'samosa', 'momos', 'noodles', 'thali', 'mess', 'canteen', 'tiffin', 'nashta', 'khana'], cat: 'food' },
+    { kw: ['amazon', 'flipkart', 'myntra', 'ajio', 'meesho', 'nykaa', 'mall', 'clothes', 'shirt', 'shoes', 'jeans', 'dress', 'watch', 'jewellery', 'laptop', 'mobile', 'phone', 'tablet', 'headphones', 'earphones', 'keyboard', 'mouse', 'charger', 'smartwatch', 'iphone', 'samsung', 'oneplus', 'redmi', 'realme', 'bazaar', 'market', 'cloth', 'kapde', 'sale', 'saree', 'kurta', 'chappals', 'sandals', 'bag', 'backpack', 'gadget'], cat: 'shopping' },
+    { kw: ['ola', 'uber', 'rapido', 'metro', 'bus', 'rick', 'rickshaw', 'cab', 'petrol', 'diesel', 'toll', 'irctc', 'indigo', 'spicejet', 'flight', 'cng', 'parking', 'auto', 'fare', 'train', 'railway', 'ticket', 'pass', 'yatra', 'makemytrip', 'goibibo', 'fuel'], cat: 'transport' },
+    { kw: ['jio', 'airtel', 'bsnl', 'vi', 'recharge', 'broadband', 'bijli', 'electricity', 'water bill', 'gas bill', 'wifi', 'internet', 'cylinder', 'lpg', 'paani', 'light bill'], cat: 'utilities' },
+    { kw: ['netflix', 'hotstar', 'disney', 'spotify', 'youtube premium', 'prime video', 'zee5', 'crunchyroll', 'notion', 'discord', 'chatgpt', 'openai', 'github', 'adobe', 'cloud', 'subscription', 'membership', 'renewal'], cat: 'subscriptions' },
+    { kw: ['pvr', 'inox', 'bookmyshow', 'movie', 'concert', 'gaming', 'pub', 'bar', 'club', 'comedy', 'cricket', 'match', 'stadium', 'amusement', 'park', 'outing', 'trip', 'picnic'], cat: 'entertainment' },
+    { kw: ['hospital', 'doctor', 'clinic', 'pharmacy', 'medplus', 'apollo', 'medicine', 'chemist', 'dentist', 'diagnostic', 'lab test', 'birth', 'delivery', 'surgery', 'nursing home', 'maternity', 'checkup', 'health bill', 'blood test', 'x-ray', 'xray', 'scan', 'vaccine', 'vaccination', 'injection', 'icu', 'dawai', 'dawa', 'medical', 'dr', 'fever', 'bandage', 'ointment', 'syrup', 'capsule', 'tablet', 'pathology', 'test', 'report', 'consultation'], cat: 'health' },
 ];
 
 function keywordMatch(desc) {
