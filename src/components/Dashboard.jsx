@@ -148,13 +148,13 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
         catMap[t.category] = (catMap[t.category] || 0) + Number(t.amount);
     });
 
-    const getAdvice = async () => {
+    const getAdvice = async (forceRefresh = false) => {
         if (!catMap || Object.keys(catMap).length === 0) {
             message.warning('Add some expense transactions first.');
             return;
         }
         const cacheKey = JSON.stringify(catMap);
-        if (cacheRef.current[cacheKey]) {
+        if (!forceRefresh && cacheRef.current[cacheKey]) {
             setAdvice(cacheRef.current[cacheKey]);
             return;
         }
@@ -294,7 +294,7 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
                                 <div className="mm-card-subtitle">Finance LLaMA · LLaMA-3-8B + LoRA</div>
                             </div>
                             <button
-                                onClick={getAdvice}
+                                onClick={() => getAdvice(true)}
                                 disabled={adviceLoading || Object.keys(catMap).length === 0}
                                 style={{
                                     background: adviceLoading ? '#f5f3ff' : '#6c63ff',
@@ -327,7 +327,7 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
                             {!adviceLoading && !adviceError && advice && (
                                 <div style={{ padding: '12px 14px', background: '#f5f3ff', borderRadius: 10, borderLeft: '3px solid #6c63ff' }}>
                                     <div style={{ fontSize: 12, color: '#4c1d95', fontWeight: 600, marginBottom: 5 }}>💡 AI Insight</div>
-                                    <p style={{ fontSize: 12.5, color: '#3730a3', lineHeight: 1.65, margin: 0 }}>{advice}</p>
+                                    <p style={{ fontSize: 12.5, color: '#3730a3', lineHeight: 1.65, margin: 0, whiteSpace: 'pre-wrap' }}>{advice}</p>
                                 </div>
                             )}
 
