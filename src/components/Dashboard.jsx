@@ -111,6 +111,12 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
     const [adviceError, setAdviceError] = useState('');
     const cacheRef = useRef({});
 
+    // Pre-warm the Modal container on page load (fires in background)
+    useEffect(() => {
+        const API = import.meta.env.VITE_API_URL || 'https://vjain5375--finance-llama-api-financeadvisor-get-advice.modal.run';
+        fetch(API, { method: 'OPTIONS' }).catch(() => { }); // silent ping to wake container
+    }, []);
+
     const thisMonth = txns.filter(t => {
         const d = new Date(t.date);
         return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
