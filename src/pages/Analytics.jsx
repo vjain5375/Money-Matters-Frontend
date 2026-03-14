@@ -181,8 +181,8 @@ export default function Analytics() {
         setAdviceLoading(true);
         setAdviceError('');
         try {
-            const API = import.meta.env.VITE_API_URL || 'http://localhost:8001';
-            const res = await fetch(`${API}/get-advice`, {
+            const API = import.meta.env.VITE_API_URL || 'https://vjain5375--finance-llama-api-financeadvisor-get-advice.modal.run';
+            const res = await fetch(`${API}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ expenses }),
