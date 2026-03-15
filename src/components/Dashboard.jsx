@@ -114,11 +114,10 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
     // Pre-warm the Modal container on page load (fires in background)
     useEffect(() => {
         const API = import.meta.env.VITE_API_URL || 'https://vjain5375--finance-llama-api-financeadvisor-get-advice.modal.run';
-        // Sending an empty POST so it wakes the container without triggering an OPTIONS preflight
+        // Sending a plain POST without JSON headers bypasses the CORS OPTIONS preflight
         fetch(API, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ expenses: {} }),
+            body: '{}',
         }).catch(() => { });
     }, []);
 
