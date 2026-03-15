@@ -56,9 +56,11 @@ const KEYWORD_MAP = [
 ];
 
 function keywordMatch(desc) {
-    const lower = desc.toLowerCase();
+    const lowerWords = desc.toLowerCase().split(/\s+/);
     for (const { kw, cat } of KEYWORD_MAP) {
-        if (kw.some(k => lower.includes(k))) return cat;
+        if (lowerWords.some(word => kw.includes(word))) {
+            return cat;
+        }
     }
     return null;
 }
