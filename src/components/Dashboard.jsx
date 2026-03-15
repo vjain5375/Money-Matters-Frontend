@@ -111,14 +111,20 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
     const [adviceError, setAdviceError] = useState('');
     const cacheRef = useRef({});
 
-    // Pre-warm the Modal container on page load (fires in background)
+    // Pre-warm the Modal container on page load (fires in background) - max once every 5 minutes
     useEffect(() => {
-        const API = import.meta.env.VITE_API_URL || 'https://vjain5375--finance-llama-api-financeadvisor-get-advice.modal.run';
-        // Sending a plain POST without JSON headers bypasses the CORS OPTIONS preflight
-        fetch(API, {
-            method: 'POST',
-            body: '{}',
-        }).catch(() => { });
+        const lastPing = localStorage.getItem('mm_last_prewarm');
+        const nowMs = Date.now();
+
+        // Only ping if we haven't pinged in the last 5 minutes (300,000 ms)
+        if (!lastPing || (nowMs - parseInt(lastPing, 10)) > 300000) {
+            const API = import.meta.env.VITE_API_URL || 'https://vjain5375--finance-llama-api-financeadvisor-get-advice.modal.run';
+            fetch(API, {
+                method: 'POST',
+                body: '{}',
+            }).catch(() => { });
+            localStorage.setItem('mm_last_prewarm', nowMs.toString());
+        }
     }, []);
 
     const thisMonth = txns.filter(t => {
