@@ -154,8 +154,11 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
 
     // Build expenses dict for AI advisor (category key → amount)
     const catMap = {};
+    const recentItemsMap = {};
     txns.filter(t => t.type === 'debit').forEach(t => {
         catMap[t.category] = (catMap[t.category] || 0) + Number(t.amount);
+        if (!recentItemsMap[t.category]) recentItemsMap[t.category] = [];
+        if (recentItemsMap[t.category].length < 3) recentItemsMap[t.category].push(t.description);
     });
 
     const getAdvice = async (forceRefresh = false) => {
@@ -163,7 +166,7 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
             message.warning('Add some expense transactions first.');
             return;
         }
-        const cacheKey = JSON.stringify(catMap);
+        const cacheKey = JSON.stringify({ catMap, recentItemsMap });
         if (!forceRefresh && cacheRef.current[cacheKey]) {
             setAdvice(cacheRef.current[cacheKey]);
             return;
@@ -175,7 +178,7 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
             const res = await fetch(`${API}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ expenses: catMap }),
+                body: JSON.stringify({ expenses: catMap, recent_items: recentItemsMap }),
             });
             if (!res.ok) throw new Error(`${res.status}`);
             const data = await res.json();
