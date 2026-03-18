@@ -196,7 +196,7 @@ const MetricCard = ({ label, value, sub, iconBg, iconColor, icon: Icon, changeTy
 /* ─── Overview Tab ─── */
 const OverviewTab = ({ txns, loading, onRefresh }) => {
     const now = new Date();
-    const [advice, setAdvice] = useState('');
+    const [advice, setAdvice] = useState([]);
     const [adviceLoading, setAdviceLoading] = useState(false);
     const [adviceError, setAdviceError] = useState('');
     const cacheRef = useRef({});
@@ -278,8 +278,9 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
             });
             if (!res.ok) throw new Error(`${res.status}`);
             const data = await res.json();
-            cacheRef.current[cacheKey] = data.advice;
-            setAdvice(data.advice);
+            const parsed = data.insights || (data.advice ? data.advice.split('\n\n') : []);
+            cacheRef.current[cacheKey] = parsed;
+            setAdvice(parsed);
         } catch {
             setAdviceError('Backend not reachable — start the backend server first.');
         } finally {
@@ -457,7 +458,7 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
                                         onClick={() => getAdvice(true)}
                                         disabled={adviceLoading || Object.keys(catMap).length === 0}
                                     >
-                                        {adviceLoading ? 'Thinking…' : advice ? '↺ Refresh' : 'Get Advice'}
+                                        {adviceLoading ? 'Thinking…' : advice.length ? '↺ Refresh' : 'Get Advice'}
                                     </button>
                                 </div>
                             </div>
@@ -486,7 +487,7 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
 
                                 {/* Advice */}
                                 <AnimatePresence>
-                                    {!adviceLoading && !adviceError && advice && (
+                                    {!adviceLoading && !adviceError && advice.length > 0 && (
                                         <motion.div
                                             className="mm-ai-advice"
                                             key="advice"
@@ -497,26 +498,19 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
                                         >
                                             <div className="mm-ai-advice-label">💡 AI Insight</div>
                                             <div className="mm-ai-advice-text">
-                                                {advice.split('\n\n').map((block, i) => {
-                                                    const match = block.match(/^\*\*(.+?)\*\*\s*(.*)/s);
-                                                    return (
-                                                        <div key={i} className="mm-ai-insight-block">
-                                                            {match ? (
-                                                                <>
-                                                                    <span className="mm-ai-insight-label">{match[1]}</span>
-                                                                    {' '}{match[2].trim()}
-                                                                </>
-                                                            ) : block.trim()}
-                                                        </div>
-                                                    );
-                                                })}
+                                                {advice.map((tip, i) => (
+                                                    <div key={i} className="mm-ai-insight-block">
+                                                        <span className="mm-ai-insight-label">Insight {i + 1}:</span>
+                                                        {' '}{tip.trim()}
+                                                    </div>
+                                                ))}
                                             </div>
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
 
                                 {/* Empty state */}
-                                {!adviceLoading && !adviceError && !advice && (
+                                {!adviceLoading && !adviceError && advice.length === 0 && (
                                     txns.length === 0
                                         ? <Empty description="Add transactions first" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '20px 0' }} />
                                         : (
