@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Form, Input, Button, message, Divider } from 'antd';
 import { MailOutlined, LockOutlined, ArrowRightOutlined, ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useNavigate, Link } from 'react-router-dom';
@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 
 export default function Login() {
-    const { signIn } = useAuth();
+    const { signIn, sendOtp, verifyOtp } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [googleLoad, setGoogleLoad] = useState(false);
@@ -14,6 +14,17 @@ export default function Login() {
     const [resetEmail, setResetEmail] = useState('');
     const [resetLoading, setResetLoading] = useState(false);
     const [resetSent, setResetSent] = useState(false);
+
+    // OTP state
+    const [otpMode, setOtpMode] = useState(false);       // show OTP panel
+    const [otpEmail, setOtpEmail] = useState('');
+    const [otpSent, setOtpSent] = useState(false);        // step 2: digit entry
+    const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+    const [otpSending, setOtpSending] = useState(false);
+    const [otpVerifying, setOtpVerifying] = useState(false);
+    const [otpResendTimer, setOtpResendTimer] = useState(0);
+    const otpRefs = useRef([]);
+    const timerRef = useRef(null);
 
     /* ── Email sign in ── */
     const onFinish = async ({ email, password }) => {
@@ -45,6 +56,82 @@ export default function Login() {
         }
     };
 
+    /* ── OTP helpers ── */
+    const startResendTimer = () => {
+        setOtpResendTimer(60);
+        clearInterval(timerRef.current);
+        timerRef.current = setInterval(() => {
+            setOtpResendTimer(t => {
+                if (t <= 1) { clearInterval(timerRef.current); return 0; }
+                return t - 1;
+            });
+        }, 1000);
+    };
+
+    const handleSendOtp = async () => {
+        if (!otpEmail.trim()) { message.warning('Please enter your email.'); return; }
+        setOtpSending(true);
+        const { error } = await sendOtp(otpEmail.trim());
+        setOtpSending(false);
+        if (error) {
+            message.error({ content: error.message, duration: 5 });
+        } else {
+            setOtpSent(true);
+            setOtpDigits(['', '', '', '', '', '']);
+            startResendTimer();
+            setTimeout(() => otpRefs.current[0]?.focus(), 100);
+        }
+    };
+
+    const handleOtpDigit = (val, idx) => {
+        const digit = val.replace(/\D/g, '').slice(-1);
+        const next = [...otpDigits];
+        next[idx] = digit;
+        setOtpDigits(next);
+        if (digit && idx < 5) otpRefs.current[idx + 1]?.focus();
+        if (next.every(d => d !== '') && next.join('').length === 6) {
+            handleVerifyOtp(next.join(''));
+        }
+    };
+
+    const handleOtpKeyDown = (e, idx) => {
+        if (e.key === 'Backspace' && !otpDigits[idx] && idx > 0) {
+            otpRefs.current[idx - 1]?.focus();
+        }
+    };
+
+    const handleOtpPaste = (e) => {
+        e.preventDefault();
+        const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+        if (pasted.length === 6) {
+            setOtpDigits(pasted.split(''));
+            otpRefs.current[5]?.focus();
+            handleVerifyOtp(pasted);
+        }
+    };
+
+    const handleVerifyOtp = async (code) => {
+        setOtpVerifying(true);
+        const { error } = await verifyOtp(otpEmail.trim(), code);
+        setOtpVerifying(false);
+        if (error) {
+            message.error({ content: '❌ Invalid or expired code. Try again.', duration: 4 });
+            setOtpDigits(['', '', '', '', '', '']);
+            setTimeout(() => otpRefs.current[0]?.focus(), 100);
+        } else {
+            navigate('/');
+        }
+    };
+
+    const resetOtpMode = () => {
+        setOtpMode(false);
+        setOtpSent(false);
+        setOtpEmail('');
+        setOtpDigits(['', '', '', '', '', '']);
+        setOtpResendTimer(0);
+        clearInterval(timerRef.current);
+    };
+
     /* ── Forgot password ── */
     const handleReset = async () => {
         if (!resetEmail.trim()) {
@@ -62,6 +149,111 @@ export default function Login() {
             setResetSent(true);
         }
     };
+
+    /* ══════════════════════════════════════════
+       OTP PANEL
+    ══════════════════════════════════════════ */
+    const otpPanel = (
+        <div style={S.formWrap}>
+            <button style={S.backBtn} onClick={resetOtpMode}>
+                <ArrowLeftOutlined style={{ marginRight: 6 }} /> Back to sign in
+            </button>
+
+            {!otpSent ? (
+                /* Step 1 — enter email */
+                <>
+                    <div style={{ marginBottom: 28 }}>
+                        <div style={S.formTitle}>Sign in with OTP</div>
+                        <div style={S.formSub}>We'll email you a 6-digit code — no password needed.</div>
+                    </div>
+                    <div style={{ marginBottom: 6 }}>
+                        <span style={S.label}>Email address</span>
+                    </div>
+                    <Input
+                        prefix={<MailOutlined style={{ color: '#d1d5db', fontSize: 14 }} />}
+                        placeholder="you@example.com"
+                        size="large"
+                        style={S.input}
+                        value={otpEmail}
+                        onChange={e => setOtpEmail(e.target.value)}
+                        onPressEnter={handleSendOtp}
+                        autoFocus
+                    />
+                    <Button
+                        type="primary"
+                        loading={otpSending}
+                        onClick={handleSendOtp}
+                        block
+                        style={{ ...S.submitBtn, marginTop: 20 }}
+                        size="large"
+                    >
+                        {otpSending ? 'Sending code…' : 'Send OTP'}
+                    </Button>
+                </>
+            ) : (
+                /* Step 2 — enter 6-digit code */
+                <>
+                    <div style={{ marginBottom: 28 }}>
+                        <div style={S.formTitle}>Enter your code</div>
+                        <div style={S.formSub}>
+                            We sent a 6-digit code to <strong>{otpEmail}</strong>.
+                        </div>
+                    </div>
+
+                    {/* 6-digit input boxes */}
+                    <div style={S.otpRow} onPaste={handleOtpPaste}>
+                        {otpDigits.map((d, i) => (
+                            <input
+                                key={i}
+                                ref={el => (otpRefs.current[i] = el)}
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={1}
+                                value={d}
+                                onChange={e => handleOtpDigit(e.target.value, i)}
+                                onKeyDown={e => handleOtpKeyDown(e, i)}
+                                style={{
+                                    ...S.otpBox,
+                                    borderColor: d ? '#5b52f0' : '#e5e7eb',
+                                    background: d ? '#f5f3ff' : '#fff',
+                                    boxShadow: d ? '0 0 0 3px rgba(91,82,240,0.12)' : 'none',
+                                }}
+                            />
+                        ))}
+                    </div>
+
+                    {otpVerifying && (
+                        <div style={{ textAlign: 'center', color: '#5b52f0', fontSize: 13, marginTop: 16, fontWeight: 500 }}>
+                            Verifying…
+                        </div>
+                    )}
+
+                    <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#9ca3af' }}>
+                        Didn't receive it?{' '}
+                        {otpResendTimer > 0 ? (
+                            <span>Resend in {otpResendTimer}s</span>
+                        ) : (
+                            <span
+                                style={{ color: '#5b52f0', fontWeight: 600, cursor: 'pointer' }}
+                                onClick={() => { setOtpSent(false); handleSendOtp(); }}
+                            >
+                                Resend code
+                            </span>
+                        )}
+                    </div>
+
+                    <div style={{ textAlign: 'center', marginTop: 10, fontSize: 12.5, color: '#9ca3af' }}>
+                        <span
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => { setOtpSent(false); setOtpDigits(['', '', '', '', '', '']); }}
+                        >
+                            ← Use a different email
+                        </span>
+                    </div>
+                </>
+            )}
+        </div>
+    );
 
     /* ══════════════════════════════════════════
        FORGOT PASSWORD PANEL
@@ -155,7 +347,19 @@ export default function Login() {
                 )}
             </button>
 
-            <Divider style={{ margin: '20px 0', borderColor: '#f3f4f6' }}>
+            <Divider style={{ margin: '16px 0', borderColor: '#f3f4f6' }}>
+                <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 500 }}>or</span>
+            </Divider>
+
+            {/* OTP button */}
+            <button style={S.otpBtn} onClick={() => setOtpMode(true)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b52f0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <span style={{ fontWeight: 600, fontSize: 13.5, color: '#5b52f0' }}>Sign in with OTP</span>
+            </button>
+
+            <Divider style={{ margin: '16px 0', borderColor: '#f3f4f6' }}>
                 <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 500 }}>or sign in with email</span>
             </Divider>
 
@@ -177,7 +381,6 @@ export default function Login() {
                     />
                 </Form.Item>
 
-                {/* Password label row — outside Form.Item to avoid merge bug */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <span style={S.label}>Password</span>
                     <span style={S.forgotLink} onClick={() => setForgotMode(true)}>
@@ -240,17 +443,29 @@ export default function Login() {
                         </div>
                         <span style={S.logoText}>Money<span style={{ color: '#a78bfa' }}>Matters</span></span>
                     </div>
-                    <h1 style={S.headline}>Your finances,<br />finally under control.</h1>
-                    <p style={S.subline}>Track every rupee. Spot patterns. Hit your goals — all in one place.</p>
+                    <h1 style={S.headline}>Know where every<br />rupee goes.</h1>
+                    <p style={S.subline}>Smart expense tracking with AI-powered insights — built for how Indians actually spend.</p>
                     <div style={S.features}>
                         {[
-                            { icon: '📊', text: 'Real-time spending insights' },
-                            { icon: '🤖', text: 'ML-powered categorisation' },
-                            { icon: '🔐', text: 'Bank-grade security (RLS)' },
-                            { icon: '📈', text: 'Monthly budget tracking' },
+                            {
+                                svg: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+                                text: 'Spending breakdown by category'
+                            },
+                            {
+                                svg: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+                                text: 'Auto-categorises transactions with ML'
+                            },
+                            {
+                                svg: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+                                text: 'Row-level security — your data stays yours'
+                            },
+                            {
+                                svg: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+                                text: 'Monthly budgets with live progress'
+                            },
                         ].map((f) => (
                             <div key={f.text} style={S.featureRow}>
-                                <span style={{ fontSize: 18 }}>{f.icon}</span>
+                                <span style={S.featureIcon}>{f.svg}</span>
                                 <span style={S.featureText}>{f.text}</span>
                             </div>
                         ))}
@@ -260,7 +475,7 @@ export default function Login() {
 
             {/* Right form panel */}
             <div style={S.right}>
-                {forgotMode ? forgotPanel : loginPanel}
+                {otpMode ? otpPanel : forgotMode ? forgotPanel : loginPanel}
             </div>
         </div>
     );
@@ -299,18 +514,24 @@ const S = {
     features: { display: 'flex', flexDirection: 'column', gap: 12 },
     featureRow: {
         display: 'flex', alignItems: 'center', gap: 12,
-        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 10, padding: '11px 16px', backdropFilter: 'blur(6px)',
+        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: 10, padding: '10px 14px', backdropFilter: 'blur(6px)',
     },
-    featureText: { fontSize: 13.5, color: 'rgba(255,255,255,0.72)', fontWeight: 500 },
+    featureIcon: {
+        width: 28, height: 28, borderRadius: 7, flexShrink: 0,
+        background: 'rgba(91,82,240,0.2)', border: '1px solid rgba(91,82,240,0.25)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+    },
+    featureText: { fontSize: 13, color: 'rgba(255,255,255,0.65)', fontWeight: 400, lineHeight: 1.4 },
 
     right: {
-        width: 460, flexShrink: 0, background: '#f9fafb',
+        width: 480, flexShrink: 0, background: '#fff',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '60px 48px',
+        padding: '60px 52px',
+        borderLeft: '1px solid #f0f0f0',
     },
-    formWrap: { width: '100%', maxWidth: 360 },
-    formTitle: { fontSize: 26, fontWeight: 800, color: '#111827', letterSpacing: '-0.6px', marginBottom: 6 },
+    formWrap: { width: '100%', maxWidth: 368 },
+    formTitle: { fontSize: 24, fontWeight: 700, color: '#0f172a', letterSpacing: '-0.4px', marginBottom: 6 },
     formSub: { fontSize: 13.5, color: '#6b7280' },
     label: { fontSize: 13, fontWeight: 600, color: '#374151' },
     link: { color: '#5b52f0', fontWeight: 600, cursor: 'pointer', textDecoration: 'none' },
@@ -329,6 +550,14 @@ const S = {
         cursor: 'pointer', fontFamily: "'Inter', sans-serif",
         boxShadow: '0 1px 3px rgba(0,0,0,0.06)', transition: 'box-shadow 0.15s',
     },
+    otpBtn: {
+        width: '100%', height: 48,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
+        border: '1.5px solid #c4b5fd', borderRadius: 11,
+        cursor: 'pointer', fontFamily: "'Inter', sans-serif",
+        boxShadow: '0 1px 4px rgba(91,82,240,0.1)',
+    },
     footerNote: { fontSize: 12, color: '#9ca3af', textAlign: 'center', marginTop: 24 },
     backBtn: {
         display: 'flex', alignItems: 'center',
@@ -337,4 +566,15 @@ const S = {
         padding: '0 0 28px', fontFamily: "'Inter', sans-serif",
     },
     resetSuccess: { textAlign: 'center', paddingTop: 12 },
+    otpRow: {
+        display: 'flex', gap: 10, justifyContent: 'center', marginTop: 4,
+    },
+    otpBox: {
+        width: 46, height: 54, textAlign: 'center',
+        fontSize: 22, fontWeight: 700, color: '#111827',
+        border: '1.5px solid #e5e7eb', borderRadius: 10,
+        outline: 'none', caretColor: '#5b52f0',
+        transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
+        fontFamily: "'Inter', sans-serif",
+    },
 };

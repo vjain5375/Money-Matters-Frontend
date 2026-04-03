@@ -35,12 +35,29 @@ export function AuthProvider({ children }) {
         return { data, error };
     };
 
+    const sendOtp = async (email) => {
+        const { data, error } = await supabase.auth.signInWithOtp({
+            email,
+            options: { shouldCreateUser: false },
+        });
+        return { data, error };
+    };
+
+    const verifyOtp = async (email, token) => {
+        const { data, error } = await supabase.auth.verifyOtp({
+            email,
+            token,
+            type: 'email',
+        });
+        return { data, error };
+    };
+
     const signOut = async () => {
         await supabase.auth.signOut();
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
+        <AuthContext.Provider value={{ user, loading, signUp, signIn, sendOtp, verifyOtp, signOut }}>
             {children}
         </AuthContext.Provider>
     );

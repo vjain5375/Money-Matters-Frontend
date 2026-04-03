@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { Layout, message, Tooltip, Spin } from 'antd';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  DashboardOutlined,
-  SwapOutlined,
-  SettingOutlined,
-  BarChartOutlined,
-  WalletOutlined,
-  BellOutlined,
-  QuestionCircleOutlined,
-  LogoutOutlined,
-  DownOutlined,
-  MoreOutlined,
-} from '@ant-design/icons';
+  LayoutDashboard,
+  ArrowLeftRight,
+  Settings,
+  BarChart2,
+  Wallet,
+  Bell,
+  HelpCircle,
+  LogOut,
+  MoreHorizontal,
+  ChevronDown,
+} from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AddTransaction from './components/AddTransaction';
 import Analytics from './pages/Analytics';
@@ -28,11 +29,11 @@ const { Sider } = Layout;
 
 /* ─── Navigation config ─── */
 const NAV_ITEMS = [
-  { key: 'overview', path: '/', icon: <DashboardOutlined />, label: 'Overview', badge: null },
-  { key: 'transactions', path: '/transactions', icon: <SwapOutlined />, label: 'Transactions', badge: null },
-  { key: 'analytics', path: '/analytics', icon: <BarChartOutlined />, label: 'Analytics', badge: null },
-  { key: 'budgets', path: '/budgets', icon: <WalletOutlined />, label: 'Budgets', badge: null },
-  { key: 'settings', path: '/settings', icon: <SettingOutlined />, label: 'Settings', badge: null },
+  { key: 'overview', path: '/', icon: LayoutDashboard, label: 'Overview' },
+  { key: 'transactions', path: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
+  { key: 'analytics', path: '/analytics', icon: BarChart2, label: 'Analytics' },
+  { key: 'budgets', path: '/budgets', icon: Wallet, label: 'Budgets' },
+  { key: 'settings', path: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 const HEADER_MAP = {
@@ -43,9 +44,7 @@ const HEADER_MAP = {
   '/settings': { title: 'Settings', subtitle: 'Account & notification preferences' },
 };
 
-/* ─────────────────── Sidebar ─────────────────── */
-
-// Derive display name + initials from Supabase user object
+/* ─── Helpers ─── */
 function getUserInfo(user) {
   const meta = user?.user_metadata ?? {};
   const fullName = meta.full_name || meta.name || '';
@@ -57,6 +56,7 @@ function getUserInfo(user) {
   return { display, initials, email };
 }
 
+/* ─────────────────── Sidebar ─────────────────── */
 function Sidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -71,52 +71,47 @@ function Sidebar() {
       style={{ position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 200, overflow: 'hidden' }}
       trigger={null}
     >
-      {/* ── Logo lockup ── */}
+      {/* Logo */}
       <div className="mm-logo-wrap">
         <div className="mm-logo-icon">
-          {/* Stylised ‘M’ monogram */}
-          <svg width="17" height="17" viewBox="0 0 20 20" fill="none">
-            <path
-              d="M3 15V5l7 7 7-7v10"
-              stroke="#fff"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+            <path d="M3 15V5l7 7 7-7v10" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
         <div>
-          <div className="mm-logo-text">
-            Money<span>Matters</span>
-          </div>
+          <div className="mm-logo-text">Money<span>Matters</span></div>
           <div className="mm-logo-version">Personal Finance</div>
         </div>
       </div>
 
-      {/* ── Main nav ── */}
-      <div style={{ padding: '8px 0', marginTop: 4 }}>
+      {/* Nav */}
+      <div style={{ padding: '6px 0', marginTop: 4 }}>
         <div className="mm-nav-section-label">Menu</div>
-        {NAV_ITEMS.map((item) => (
-          <div
-            key={item.key}
-            id={`nav-${item.key}`}
-            role="button"
-            tabIndex={0}
-            className={`mm-menu-item ${activeKey === item.key ? 'active' : ''}`}
-            onClick={() => navigate(item.path)}
-            onKeyDown={(e) => e.key === 'Enter' && navigate(item.path)}
-          >
-            <span className="mm-menu-icon">{item.icon}</span>
-            <span style={{ flex: 1 }}>{item.label}</span>
-            {item.badge && <span className="mm-menu-badge">{item.badge}</span>}
-          </div>
-        ))}
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeKey === item.key;
+          return (
+            <motion.div
+              key={item.key}
+              id={`nav-${item.key}`}
+              role="button"
+              tabIndex={0}
+              className={`mm-menu-item ${isActive ? 'active' : ''}`}
+              onClick={() => navigate(item.path)}
+              onKeyDown={(e) => e.key === 'Enter' && navigate(item.path)}
+              whileTap={{ scale: 0.97 }}
+            >
+              <span className="mm-menu-icon">
+                <Icon size={15} strokeWidth={isActive ? 2.2 : 1.8} />
+              </span>
+              <span style={{ flex: 1 }}>{item.label}</span>
+            </motion.div>
+          );
+        })}
       </div>
 
-      {/* ── Footer: user profile card + quick actions ── */}
+      {/* Footer */}
       <div className="mm-sidebar-footer">
-
-        {/* User chip */}
         <Tooltip title={email} placement="right" mouseEnterDelay={0.4}>
           <div
             className="mm-sidebar-user-card"
@@ -129,16 +124,12 @@ function Sidebar() {
               </div>
               <div className="mm-sidebar-user-plan">Free Plan</div>
             </div>
-            <MoreOutlined style={{ fontSize: 14, color: '#9ca3af' }} />
+            <MoreHorizontal size={14} style={{ color: '#475569', flexShrink: 0 }} />
           </div>
         </Tooltip>
 
-        {/* Quick actions */}
-        <div
-          className="mm-sidebar-action"
-          onClick={() => message.info('Help & documentation')}
-        >
-          <span className="mm-menu-icon"><QuestionCircleOutlined /></span>
+        <div className="mm-sidebar-action" onClick={() => message.info('Help & documentation')}>
+          <span className="mm-menu-icon"><HelpCircle size={14} /></span>
           Help & Docs
         </div>
         <div
@@ -148,7 +139,7 @@ function Sidebar() {
             message.success('Signed out successfully');
           }}
         >
-          <span className="mm-menu-icon"><LogoutOutlined /></span>
+          <span className="mm-menu-icon"><LogOut size={14} /></span>
           Sign Out
         </div>
       </div>
@@ -171,36 +162,25 @@ function Header() {
   };
 
   return (
-    <div
-      className="mm-header"
-      style={{
-        position: 'fixed', top: 0, left: 224, right: 0, zIndex: 150,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 28px', height: 62,
-        background: '#fff',
-        borderBottom: '1px solid #eaecf0',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-      }}
-    >
-      {/* Left: page title */}
+    <div className="mm-header">
+      {/* Left */}
       <div className="mm-header-left">
         <div className="mm-header-title">{title}</div>
         <div className="mm-header-subtitle">{subtitle}</div>
       </div>
 
-      {/* Right: controls */}
+      {/* Right */}
       <div className="mm-header-right">
-        {/* Notification bell */}
         <button
           className="mm-notif-btn"
           id="header-notifications"
           onClick={() => message.info('No new notifications')}
           title="Notifications"
         >
-          <BellOutlined />
+          <Bell size={15} />
         </button>
 
-        {/* User chip + dropdown */}
+        {/* User chip */}
         <div
           className="mm-user-chip"
           id="header-user-chip"
@@ -212,25 +192,25 @@ function Header() {
             <div className="mm-user-name">{display}</div>
             <div className="mm-user-role">{email}</div>
           </div>
-          <DownOutlined style={{ fontSize: 10, color: '#98a2b3', marginLeft: 2 }} />
+          <ChevronDown size={12} style={{ color: '#9CA3AF', marginLeft: 2 }} />
 
           {showDropdown && (
-            <div
+            <motion.div
+              initial={{ opacity: 0, y: -6, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.15 }}
               style={{
                 position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-                background: '#fff', border: '1px solid #eaecf0', borderRadius: 12,
-                boxShadow: '0 8px 30px rgba(0,0,0,0.12)', padding: '6px',
+                background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12,
+                boxShadow: '0 8px 30px rgba(15,23,42,0.10)', padding: '6px',
                 minWidth: 200, zIndex: 999,
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* User info header */}
-              <div style={{ padding: '8px 12px 10px', borderBottom: '1px solid #f2f4f7', marginBottom: 4 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#101828' }}>{display}</div>
-                <div style={{ fontSize: 12, color: '#667085', marginTop: 1 }}>{email}</div>
+              <div style={{ padding: '8px 12px 10px', borderBottom: '1px solid #F3F4F6', marginBottom: 4 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{display}</div>
+                <div style={{ fontSize: 12, color: '#6B7280', marginTop: 1 }}>{email}</div>
               </div>
-
-              {/* Menu items */}
               {[
                 { label: '👤 Profile', action: () => message.info('Settings coming soon!') },
                 { label: '🔔 Notifications', action: () => message.info('No new notifications') },
@@ -240,31 +220,26 @@ function Header() {
                   key={item.label}
                   onClick={() => { item.action(); setShowDropdown(false); }}
                   style={{
-                    padding: '9px 12px', fontSize: 13, color: '#344054',
+                    padding: '9px 12px', fontSize: 13, color: '#374151',
                     fontWeight: 500, borderRadius: 8, cursor: 'pointer', transition: 'background 0.12s',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#f9fafb')}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#F9FAFB')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
                   {item.label}
                 </div>
               ))}
-
-              {/* Sign out */}
-              <div style={{ borderTop: '1px solid #f2f4f7', marginTop: 4, paddingTop: 4 }}>
+              <div style={{ borderTop: '1px solid #F3F4F6', marginTop: 4, paddingTop: 4 }}>
                 <div
                   onClick={handleSignOut}
-                  style={{
-                    padding: '9px 12px', fontSize: 13, color: '#f04438',
-                    fontWeight: 500, borderRadius: 8, cursor: 'pointer',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#fff1f3')}
+                  style={{ padding: '9px 12px', fontSize: 13, color: '#DC2626', fontWeight: 500, borderRadius: 8, cursor: 'pointer' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#FEF2F2')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
                   🚪 Sign Out
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
@@ -272,23 +247,34 @@ function Header() {
   );
 }
 
+/* ─────────────────── Page Transition ─────────────────── */
+const pageVariants = {
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] } },
+  exit: { opacity: 0, y: -6, transition: { duration: 0.15 } },
+};
 
-/* ─────────────────── Placeholder ─────────────────── */
-function PlaceholderPage({ emoji, title, subtitle }) {
+function PageTransition({ children }) {
+  const { pathname } = useLocation();
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', minHeight: '60vh', gap: 12, textAlign: 'center',
-    }}>
-      <div style={{ fontSize: 48 }}>{emoji}</div>
-      <div style={{ fontSize: 20, fontWeight: 700, color: '#101828' }}>{title}</div>
-      <div style={{ fontSize: 14, color: '#667085', maxWidth: 320 }}>{subtitle}</div>
-    </div>
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={pathname}
+        className="page-transition"
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
-/* ─────────────────── Protected layout wrapper ─────────────────── */
+/* ─────────────────── Protected Layout ─────────────────── */
 function DashboardLayout() {
+  const location = useLocation();
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sidebar />
@@ -297,36 +283,36 @@ function DashboardLayout() {
         <main
           className="mm-content"
           style={{
-            flex: 1, marginTop: 62, padding: '28px 40px',
-            background: '#f4f5f7', minHeight: 'calc(100vh - 62px)',
-            width: 'calc(100vw - 224px)', overflowX: 'hidden'
+            flex: 1, marginTop: 60,
+            width: 'calc(100vw - 224px)', overflowX: 'hidden',
           }}
         >
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/transactions" element={<AddTransaction />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/budgets" element={<Budgets />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <PageTransition>
+            <Routes location={location}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/transactions" element={<AddTransaction />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/budgets" element={<Budgets />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </PageTransition>
         </main>
       </div>
     </Layout>
   );
 }
 
-/* ─────────────────── App root ─────────────────── */
+/* ─────────────────── App Root ─────────────────── */
 export default function App() {
   const { user, loading } = useAuth();
 
-  // Show spinner while Supabase resolves the session
   if (loading) {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex',
         alignItems: 'center', justifyContent: 'center',
-        background: '#f4f5f7',
+        background: '#F8F9FB',
       }}>
         <Spin size="large" />
       </div>
@@ -335,19 +321,9 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Public routes */}
-      <Route
-        path="/login"
-        element={user ? <Navigate to="/" replace /> : <Login />}
-      />
-      <Route
-        path="/signup"
-        element={user ? <Navigate to="/" replace /> : <Signup />}
-      />
-      {/* Always public — Supabase password-reset links land here */}
+      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/signup" element={user ? <Navigate to="/" replace /> : <Signup />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-
-      {/* Protected routes — redirect to /login if not logged in */}
       <Route
         path="/*"
         element={user ? <DashboardLayout /> : <Navigate to="/login" replace />}
@@ -355,4 +331,3 @@ export default function App() {
     </Routes>
   );
 }
-
