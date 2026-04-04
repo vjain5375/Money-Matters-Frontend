@@ -13,12 +13,14 @@ import {
   LogOut,
   MoreHorizontal,
   ChevronDown,
+  TrendingUp,
 } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AddTransaction from './components/AddTransaction';
 import Analytics from './pages/Analytics';
 import SettingsPage from './pages/Settings';
 import Budgets from './pages/Budgets';
+import StockAnalysis from './pages/StockAnalysis';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ResetPassword from './pages/ResetPassword';
@@ -33,6 +35,7 @@ const NAV_ITEMS = [
   { key: 'transactions', path: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { key: 'analytics', path: '/analytics', icon: BarChart2, label: 'Analytics' },
   { key: 'budgets', path: '/budgets', icon: Wallet, label: 'Budgets' },
+  { key: 'stocks', path: '/stocks', icon: TrendingUp, label: 'Stocks 📈' },
   { key: 'settings', path: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -41,6 +44,7 @@ const HEADER_MAP = {
   '/transactions': { title: 'Transactions', subtitle: 'Log expenses and income — synced live' },
   '/analytics': { title: 'Analytics', subtitle: 'Deep dive into your spending patterns' },
   '/budgets': { title: 'Budgets', subtitle: 'Set monthly limits and track spending' },
+  '/stocks': { title: 'Stock Analyser', subtitle: 'NSE/BSE analysis — fundamentals, technicals & AI signals' },
   '/settings': { title: 'Settings', subtitle: 'Account & notification preferences' },
 };
 
@@ -293,6 +297,7 @@ function DashboardLayout() {
               <Route path="/transactions" element={<AddTransaction />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/budgets" element={<Budgets />} />
+              <Route path="/stocks" element={<StockAnalysis />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
