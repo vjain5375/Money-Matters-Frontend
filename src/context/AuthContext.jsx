@@ -38,7 +38,7 @@ export function AuthProvider({ children }) {
     const sendOtp = async (email) => {
         const { data, error } = await supabase.auth.signInWithOtp({
             email,
-            options: { shouldCreateUser: false },
+            options: { shouldCreateUser: true },
         });
         return { data, error };
     };
@@ -52,12 +52,19 @@ export function AuthProvider({ children }) {
         return { data, error };
     };
 
+    const updateProfile = async (updates) => {
+        const { data, error } = await supabase.auth.updateUser({
+            data: updates
+        });
+        return { data, error };
+    };
+
     const signOut = async () => {
         await supabase.auth.signOut();
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, signUp, signIn, sendOtp, verifyOtp, signOut }}>
+        <AuthContext.Provider value={{ user, loading, signUp, signIn, sendOtp, verifyOtp, signOut, updateProfile }}>
             {children}
         </AuthContext.Provider>
     );

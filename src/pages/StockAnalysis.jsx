@@ -11,7 +11,7 @@ import {
     ReferenceLine, Legend,
 } from 'recharts';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_STOCK_API_URL || 'http://localhost:8000'; // Fallback to local
 
 /* ────────────────────────── helpers ────────────────────────── */
 const fmt = (v, decimals = 2, prefix = '') =>

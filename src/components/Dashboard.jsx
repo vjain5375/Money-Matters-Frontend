@@ -12,6 +12,8 @@ import {
     Sparkles,
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../context/AuthContext';
+import { User, Check } from 'lucide-react';
 
 /* ─── Category metadata ─── */
 const CAT_META = {
@@ -194,7 +196,7 @@ const MetricCard = ({ label, value, sub, iconBg, iconColor, icon: Icon, changeTy
 );
 
 /* ─── Overview Tab ─── */
-const OverviewTab = ({ txns, loading, onRefresh }) => {
+const OverviewTab = ({ txns, loading, onRefresh, onOpenProfile }) => {
     const now = new Date();
     const [advice, setAdvice] = useState([]);
     const [adviceLoading, setAdviceLoading] = useState(false);
@@ -313,6 +315,8 @@ const OverviewTab = ({ txns, loading, onRefresh }) => {
 
     return (
         <>
+            {/* Metric Cards */}
+
             {/* Metric Cards */}
             <Row gutter={[18, 18]} style={{ marginBottom: 20 }}>
                 <Col xs={24} sm={8}>
@@ -811,9 +815,41 @@ const SubscriptionsTab = ({ txns }) => {
 
 /* ─────────────────── Main Export ─────────────────── */
 export default function Dashboard() {
+    const { user, updateProfile } = useAuth();
     const [txns, setTxns] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
+
+    const [showProfileModal, setShowProfileModal] = useState(false);
+    const [newName, setNewName] = useState('');
+    const [submittingName, setSubmittingName] = useState(false);
+
+    useEffect(() => {
+        if (user && !user.user_metadata?.full_name) {
+            setShowProfileModal(true);
+        }
+    }, [user]);
+
+    const handleProfileUpdate = async () => {
+        if (!newName.trim()) {
+            message.warning('Please enter your name');
+            return;
+        }
+        setSubmittingName(true);
+        const { error } = await updateProfile({ full_name: newName.trim() });
+        if (error) {
+            message.error('Failed to update name');
+        } else {
+            message.success(`Profile updated! Welcome, ${newName}.`);
+            setShowProfileModal(false);
+        }
+        setSubmittingName(false);
+    };
+
+    const handleOpenProfile = () => {
+        setNewName(user?.user_metadata?.full_name || '');
+        setShowProfileModal(true);
+    };
 
     const fetchTxns = useCallback(async () => {
         setLoading(true);
@@ -841,11 +877,91 @@ export default function Dashboard() {
     return (
         <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
             <div className="mm-page-header">
-                <div className="mm-page-title">Financial Overview</div>
-                <div className="mm-page-subtitle">
-                    {now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                <div>
+                    <div className="mm-page-title">Financial Overview</div>
+                    <div className="mm-page-subtitle">
+                        {now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    </div>
+                </div>
+                <div style={{ display: 'flex', gap: 12 }}>
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleOpenProfile}
+                        className="mm-ai-btn"
+                        style={{ background: 'white', color: '#1E293B', border: '1px solid #E2E8F0', padding: '8px 16px' }}
+                    >
+                        <User size={16} />
+                        <span style={{ marginLeft: 8 }}>{user?.user_metadata?.full_name || 'Set Name'}</span>
+                    </motion.button>
                 </div>
             </div>
+
+            {/* Profile Modal */}
+            <AnimatePresence>
+                {showProfileModal && (
+                    <motion.div
+                        className="mm-modal-overlay"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                    >
+                        <motion.div
+                            className="mm-modal-content"
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                        >
+                            <div className="mm-modal-blob" />
+                            <div className="mm-modal-icon">
+                                <User size={28} />
+                            </div>
+                            <h2 className="mm-modal-title">
+                                {user?.user_metadata?.full_name ? 'Edit Profile' : 'Welcome to Money Matters!'}
+                            </h2>
+                            <p className="mm-modal-sub">
+                                {user?.user_metadata?.full_name
+                                    ? 'Change your display name below.'
+                                    : "We're excited to have you here. Let's start by setting up your profile."}
+                            </p>
+
+                            <div className="mm-input-group">
+                                <label className="mm-input-label">Your Name</label>
+                                <input
+                                    className="mm-modal-input"
+                                    placeholder="Enter your name"
+                                    value={newName}
+                                    onChange={(e) => setNewName(e.target.value)}
+                                    autoFocus
+                                    onKeyDown={(e) => e.key === 'Enter' && handleProfileUpdate()}
+                                />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: 12 }}>
+                                {user?.user_metadata?.full_name && (
+                                    <button
+                                        className="mm-modal-btn"
+                                        style={{ background: '#F1F5F9', color: '#64748B' }}
+                                        onClick={() => setShowProfileModal(false)}
+                                    >
+                                        Cancel
+                                    </button>
+                                )}
+                                <button
+                                    className="mm-modal-btn"
+                                    onClick={handleProfileUpdate}
+                                    disabled={submittingName || !newName.trim()}
+                                >
+                                    {submittingName ? 'Saving...' : (
+                                        <>
+                                            Save Changes <Check size={18} />
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <div className="mm-card mm-tabs" style={{ marginBottom: 20, paddingBottom: 0 }}>
                 <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} className="mm-tabs" />

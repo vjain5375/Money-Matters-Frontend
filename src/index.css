@@ -1955,3 +1955,164 @@ body {
   color: var(--text-muted);
   font-size: 14px;
 }
+
+/* ─────────────────── Premium Profile Modal ─────────────────── */
+.mm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(12px);
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.mm-modal-content {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 32px;
+  width: 100%;
+  max-width: 440px;
+  padding: 40px;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    inset 0 0 80px rgba(255, 255, 255, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.mm-modal-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(90deg, #6366f1, #3b82f6, #2dd4bf);
+  z-index: 2;
+}
+
+/* Subtle background glow inside modal */
+.mm-modal-blob {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0) 70%);
+  top: -100px;
+  right: -100px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.mm-modal-icon {
+  width: 64px;
+  height: 64px;
+  background: white;
+  color: #6366f1;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28px;
+  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.12);
+  position: relative;
+  z-index: 1;
+}
+
+.mm-modal-title {
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1.2;
+  margin-bottom: 8px;
+  letter-spacing: -1px;
+  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  position: relative;
+  z-index: 1;
+}
+
+.mm-modal-sub {
+  font-size: 15px;
+  color: #64748b;
+  margin-bottom: 32px;
+  line-height: 1.6;
+  font-weight: 500;
+  position: relative;
+  z-index: 1;
+}
+
+.mm-input-group {
+  margin-bottom: 32px;
+  position: relative;
+  z-index: 1;
+}
+
+.mm-input-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+}
+
+.mm-modal-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.6);
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 14px 18px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+
+.mm-modal-input:focus {
+  background: white;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.12);
+  transform: translateY(-1px);
+}
+
+.mm-modal-btn {
+  width: 100%;
+  background: #0f172a;
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 1;
+}
+
+.mm-modal-btn:hover:not(:disabled) {
+  background: #000;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.mm-modal-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.mm-modal-btn:disabled {
+  background: #cbd5e1;
+  color: #64748b;
+  cursor: not-allowed;
+}
