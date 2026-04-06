@@ -73,11 +73,7 @@ export default function Settings() {
     }
 
     return (
-        <div style={{ maxWidth: 680, margin: '0 auto', width: '100%' }}>
-            <div className="mm-page-header">
-                <div className="mm-page-title">Settings</div>
-                <div className="mm-page-subtitle">Manage your account preferences</div>
-            </div>
+        <div style={{ maxWidth: 680, margin: '0 auto', width: '100%', paddingTop: 10 }}>
 
             {/* Profile card */}
             <SECTION title="Profile" subtitle="Your public display information">

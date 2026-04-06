@@ -389,9 +389,6 @@ const OverviewTab = ({ txns, loading, onRefresh, onOpenProfile }) => {
                                 <div className="mm-card-title">Spending Trends</div>
                                 <div className="mm-card-subtitle">Monthly spend vs income — last 6 months</div>
                             </div>
-                            <Tag style={{ background: '#EEF2FF', color: '#4F46E5', borderColor: '#C7D2FE', fontWeight: 600, fontSize: 11 }}>
-                                {now.toLocaleString('en-IN', { month: 'short', year: 'numeric' })}
-                            </Tag>
                         </div>
                         {trends.every(t => t.spend === 0 && t.income === 0) ? (
                             <Empty description="Add transactions to see trends" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '40px 0' }} />
@@ -875,27 +872,7 @@ export default function Dashboard() {
     ];
 
     return (
-        <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
-            <div className="mm-page-header">
-                <div>
-                    <div className="mm-page-title">Financial Overview</div>
-                    <div className="mm-page-subtitle">
-                        {now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                    </div>
-                </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                    <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={handleOpenProfile}
-                        className="mm-ai-btn"
-                        style={{ background: 'white', color: '#1E293B', border: '1px solid #E2E8F0', padding: '8px 16px' }}
-                    >
-                        <User size={16} />
-                        <span style={{ marginLeft: 8 }}>{user?.user_metadata?.full_name || 'Set Name'}</span>
-                    </motion.button>
-                </div>
-            </div>
+        <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%', paddingTop: 10 }}>
 
             {/* Profile Modal */}
             <AnimatePresence>

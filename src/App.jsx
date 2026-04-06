@@ -44,7 +44,7 @@ const HEADER_MAP = {
   '/transactions': { title: 'Transactions', subtitle: 'Log expenses and income — synced live' },
   '/analytics': { title: 'Analytics', subtitle: 'Deep dive into your spending patterns' },
   '/budgets': { title: 'Budgets', subtitle: 'Set monthly limits and track spending' },
-  '/stocks': { title: 'Stock Analyser', subtitle: 'NSE/BSE analysis — fundamentals, technicals & AI signals' },
+  '/stocks': { title: 'Stock Analyser', subtitle: '' },
   '/settings': { title: 'Settings', subtitle: 'Account & notification preferences' },
 };
 
@@ -155,9 +155,7 @@ function Sidebar() {
 function Header() {
   const { pathname } = useLocation();
   const { user, signOut } = useAuth();
-  const [showDropdown, setShowDropdown] = useState(false);
-  const { title, subtitle } = HEADER_MAP[pathname] ?? HEADER_MAP['/'];
-  const { display, initials, email } = getUserInfo(user);
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     setShowDropdown(false);
@@ -216,7 +214,7 @@ function Header() {
                 <div style={{ fontSize: 12, color: '#6B7280', marginTop: 1 }}>{email}</div>
               </div>
               {[
-                { label: '👤 Profile', action: () => message.info('Settings coming soon!') },
+                { label: '👤 Profile', action: () => navigate('/settings') },
                 { label: '🔔 Notifications', action: () => message.info('No new notifications') },
                 { label: '💳 Billing', action: () => message.info('Free plan — upgrade coming soon!') },
               ].map((item) => (

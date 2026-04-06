@@ -223,14 +223,7 @@ export default function StockAnalysis() {
     ];
 
     return (
-        <div className="stock-page">
-            {/* ── Header ── */}
-            <div className="stock-page-header">
-                <div>
-                    <h1 className="stock-page-title">📈 Stock Analyser</h1>
-                    <p className="stock-page-sub">Indian markets (NSE/BSE) — Live fundamental, technical & sentiment analysis</p>
-                </div>
-            </div>
+        <div className="stock-page" style={{ paddingTop: 10 }}>
 
             {/* ── Search ── */}
             <div className="stock-search-wrap" ref={searchRef}>

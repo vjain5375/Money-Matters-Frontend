@@ -198,15 +198,9 @@ export default function Budgets() {
     }
 
     return (
-        <div style={{ maxWidth: 1080, margin: '0 auto', width: '100%' }}>
-            {/* Header */}
-            <div className="mm-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                    <div className="mm-page-title">Budgets</div>
-                    <div className="mm-page-subtitle">
-                        {now.toLocaleString('en-IN', { month: 'long', year: 'numeric' })} — Set limits, track spending
-                    </div>
-                </div>
+        <div style={{ maxWidth: 1080, margin: '0 auto', width: '100%', paddingTop: 10 }}>
+            {/* Action Bar */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
                 <Button
                     type="primary"
                     icon={<PlusOutlined />}

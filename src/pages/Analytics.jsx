@@ -248,12 +248,7 @@ export default function Analytics() {
     }
 
     return (
-        <div style={{ maxWidth: 1080, margin: '0 auto', width: '100%' }}>
-            {/* Header */}
-            <div className="mm-page-header">
-                <div className="mm-page-title">Analytics</div>
-                <div className="mm-page-subtitle">Deep dive into your spending patterns</div>
-            </div>
+        <div style={{ maxWidth: 1080, margin: '0 auto', width: '100%', paddingTop: 10 }}>
 
             {/* Summary stat pills */}
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
