@@ -156,6 +156,11 @@ function Header() {
   const { pathname } = useLocation();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const { title, subtitle } = HEADER_MAP[pathname] || { title: 'Money Matters', subtitle: '' };
+
+  const { display, initials, email } = getUserInfo(user);
 
   const handleSignOut = async () => {
     setShowDropdown(false);
