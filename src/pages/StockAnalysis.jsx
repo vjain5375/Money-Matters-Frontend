@@ -166,8 +166,22 @@ export default function StockAnalysis() {
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState(null);
     const [error, setError] = useState(null);
+    const [market, setMarket] = useState(null);
+    const [marketLoading, setMarketLoading] = useState(true);
     const searchRef = useRef(null);
     const debounceRef = useRef(null);
+
+    /* Fetch market overview on mount */
+    useEffect(() => {
+        const fetchMarket = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/stock/market-overview`);
+                if (res.ok) setMarket(await res.json());
+            } catch { /* silently fail */ }
+            finally { setMarketLoading(false); }
+        };
+        fetchMarket();
+    }, []);
 
     /* Search autocomplete */
     const handleQueryChange = useCallback((e) => {
@@ -592,13 +606,114 @@ export default function StockAnalysis() {
                 </motion.div>
             )}
 
-            {/* Empty state */}
+            {/* Market Overview — shown when no stock is searched */}
             {!data && !loading && !error && (
-                <div className="stock-empty-state" style={{ marginTop: 60 }}>
-                    <TrendingUp size={48} style={{ color: '#CBD5E1' }} />
-                    <p>Search for a stock above to get started</p>
-                    <p style={{ fontSize: 12, color: '#94A3B8' }}>Supports all NSE & BSE listed companies</p>
-                </div>
+                <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+
+                    {/* Indices Row */}
+                    <div style={{ marginBottom: 24 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Market Indices</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12 }}>
+                            {marketLoading
+                                ? [1, 2, 3, 4].map(i => <div key={i} className="stock-skeleton-card" style={{ height: 70, borderRadius: 12 }} />)
+                                : market?.indices && Object.entries(market.indices).map(([name, idx]) => (
+                                    <div key={name} style={{
+                                        background: '#fff', borderRadius: 12, padding: '12px 16px',
+                                        border: '1px solid #F1F5F9', boxShadow: '0 1px 6px rgba(15,23,42,0.05)',
+                                    }}>
+                                        <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>{name}</div>
+                                        <div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', marginTop: 2 }}>
+                                            {idx.price?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                        </div>
+                                        <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2, color: idx.change_pct >= 0 ? '#10B981' : '#EF4444' }}>
+                                            {idx.change_pct >= 0 ? '▲' : '▼'} {Math.abs(idx.change_pct).toFixed(2)}%
+                                        </div>
+                                    </div>
+                                ))
+                            }
+                        </div>
+                    </div>
+
+                    {/* Gainers & Losers */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                        {/* Top Gainers */}
+                        <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #F1F5F9', padding: 16, boxShadow: '0 1px 8px rgba(15,23,42,0.04)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+                                <TrendingUp size={14} style={{ color: '#10B981' }} />
+                                <span style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>Top Gainers</span>
+                            </div>
+                            {marketLoading
+                                ? [1, 2, 3].map(i => <div key={i} className="stock-skeleton-card" style={{ height: 36, borderRadius: 8, marginBottom: 6 }} />)
+                                : (market?.top_gainers || []).map((s) => (
+                                    <div key={s.symbol} onClick={() => fetchStock(s.symbol, s.name)}
+                                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #F8FAFC', cursor: 'pointer' }}
+                                        className="stock-mover-row"
+                                    >
+                                        <div>
+                                            <div style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>{s.name}</div>
+                                            <div style={{ fontSize: 11, color: '#94A3B8' }}>₹{s.price?.toLocaleString('en-IN')}</div>
+                                        </div>
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: '#10B981', background: '#ECFDF5', padding: '2px 8px', borderRadius: 6 }}>
+                                            +{s.change_pct?.toFixed(2)}%
+                                        </span>
+                                    </div>
+                                ))
+                            }
+                        </div>
+
+                        {/* Top Losers */}
+                        <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #F1F5F9', padding: 16, boxShadow: '0 1px 8px rgba(15,23,42,0.04)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+                                <TrendingDown size={14} style={{ color: '#EF4444' }} />
+                                <span style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>Top Losers</span>
+                            </div>
+                            {marketLoading
+                                ? [1, 2, 3].map(i => <div key={i} className="stock-skeleton-card" style={{ height: 36, borderRadius: 8, marginBottom: 6 }} />)
+                                : (market?.top_losers || []).map((s) => (
+                                    <div key={s.symbol} onClick={() => fetchStock(s.symbol, s.name)}
+                                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #F8FAFC', cursor: 'pointer' }}
+                                        className="stock-mover-row"
+                                    >
+                                        <div>
+                                            <div style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>{s.name}</div>
+                                            <div style={{ fontSize: 11, color: '#94A3B8' }}>₹{s.price?.toLocaleString('en-IN')}</div>
+                                        </div>
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: '#EF4444', background: '#FEF2F2', padding: '2px 8px', borderRadius: 6 }}>
+                                            {s.change_pct?.toFixed(2)}%
+                                        </span>
+                                    </div>
+                                ))
+                            }
+                        </div>
+                    </div>
+
+                    {/* Trending Stocks */}
+                    <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #F1F5F9', padding: 16, boxShadow: '0 1px 8px rgba(15,23,42,0.04)' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>🔥 Trending Stocks</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                            {marketLoading
+                                ? [1, 2, 3, 4, 5].map(i => <div key={i} className="stock-skeleton-card" style={{ width: 120, height: 56, borderRadius: 10 }} />)
+                                : (market?.trending || []).map((s) => (
+                                    <div key={s.symbol} onClick={() => fetchStock(s.symbol, s.name)}
+                                        style={{
+                                            background: '#F8FAFC', borderRadius: 10, padding: '8px 14px',
+                                            cursor: 'pointer', border: '1px solid #E2E8F0', minWidth: 110,
+                                            transition: 'all 0.15s',
+                                        }}
+                                        className="stock-trending-chip"
+                                    >
+                                        <div style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>{s.name}</div>
+                                        <div style={{ fontSize: 11, color: s.change_pct >= 0 ? '#10B981' : '#EF4444', fontWeight: 600, marginTop: 2 }}>
+                                            {s.price ? `₹${s.price?.toLocaleString('en-IN')}` : '—'}
+                                            {s.change_pct != null && ` · ${s.change_pct >= 0 ? '+' : ''}${s.change_pct.toFixed(2)}%`}
+                                        </div>
+                                    </div>
+                                ))
+                            }
+                        </div>
+                    </div>
+
+                </motion.div>
             )}
         </div>
     );

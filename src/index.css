@@ -1356,6 +1356,20 @@ body {
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
+.stock-mover-row:hover {
+  background: #F8FAFC;
+  border-radius: 8px;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+}
+
+.stock-trending-chip:hover {
+  background: #EFF6FF !important;
+  border-color: #BFDBFE !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.10);
+}
+
 /* Hero row */
 .stock-hero {
   display: flex;
