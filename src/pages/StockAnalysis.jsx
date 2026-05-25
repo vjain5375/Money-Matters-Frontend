@@ -152,13 +152,30 @@ function SignalBadge({ signal, size = 'sm' }) {
 /* RSI line chart */
 function RSIChart({ candles, indicators, timeRange, intradayData }) {
     const dataToUse = (timeRange === '1D' || timeRange === '1W') && intradayData ? intradayData : { candles, indicators };
-    if (!dataToUse.indicators?.RSI_14 || !dataToUse.candles?.length) return null;
+    
+    console.log('📊 RSIChart render:', {
+        hasRSI: !!dataToUse.indicators?.RSI_14,
+        candlesLength: dataToUse.candles?.length || 0,
+        rsiLength: dataToUse.indicators?.RSI_14?.length || 0
+    });
+    
+    if (!dataToUse.indicators?.RSI_14 || !dataToUse.candles?.length) {
+        console.log('⚠️ RSIChart: Missing RSI data or candles');
+        return (
+            <div style={{ padding: 20, textAlign: 'center', color: '#64748B', fontSize: 14 }}>
+                RSI data not available
+            </div>
+        );
+    }
     
     const sliceStart = Math.max(0, dataToUse.candles.length - 90);
     const data = dataToUse.candles.slice(sliceStart).map((c, i) => ({
         rawDate: c.date,
         rsi: dataToUse.indicators.RSI_14[sliceStart + i] ?? null,
     }));
+    
+    console.log('📊 RSIChart data points:', data.length, 'Sample RSI:', data[data.length - 1]?.rsi);
+    
     return (
         <ResponsiveContainer width="100%" height={120}>
             <ComposedChart data={data} margin={{ left: -20, right: 8, top: 4, bottom: 0 }}>
@@ -177,7 +194,21 @@ function RSIChart({ candles, indicators, timeRange, intradayData }) {
 /* MACD histogram */
 function MACDChart({ candles, indicators, timeRange, intradayData }) {
     const dataToUse = (timeRange === '1D' || timeRange === '1W') && intradayData ? intradayData : { candles, indicators };
-    if (!dataToUse.indicators?.MACD || !dataToUse.candles?.length) return null;
+    
+    console.log('📊 MACDChart render:', {
+        hasMACD: !!dataToUse.indicators?.MACD,
+        candlesLength: dataToUse.candles?.length || 0,
+        macdLength: dataToUse.indicators?.MACD?.length || 0
+    });
+    
+    if (!dataToUse.indicators?.MACD || !dataToUse.candles?.length) {
+        console.log('⚠️ MACDChart: Missing MACD data or candles');
+        return (
+            <div style={{ padding: 20, textAlign: 'center', color: '#64748B', fontSize: 14 }}>
+                MACD data not available
+            </div>
+        );
+    }
     
     const sliceStart = Math.max(0, dataToUse.candles.length - 90);
     const data = dataToUse.candles.slice(sliceStart).map((c, i) => {
@@ -189,6 +220,9 @@ function MACDChart({ candles, indicators, timeRange, intradayData }) {
             hist: dataToUse.indicators.MACD_hist?.[idx] ?? null,
         };
     });
+    
+    console.log('📊 MACDChart data points:', data.length, 'Sample MACD:', data[data.length - 1]?.macd);
+    
     return (
         <ResponsiveContainer width="100%" height={120}>
             <ComposedChart data={data} margin={{ left: -20, right: 8, top: 4, bottom: 0 }}>
@@ -208,7 +242,23 @@ function MACDChart({ candles, indicators, timeRange, intradayData }) {
 /* Price line chart with EMA overlays */
 function PriceChart({ candles, indicators, timeRange, intradayData }) {
     const dataToUse = (timeRange === '1D' || timeRange === '1W') && intradayData ? intradayData : { candles, indicators };
-    if (!dataToUse.candles?.length) return null;
+    
+    console.log('📊 PriceChart render:', {
+        timeRange,
+        hasIntradayData: !!intradayData,
+        candlesLength: dataToUse.candles?.length || 0,
+        hasIndicators: !!dataToUse.indicators,
+        indicatorKeys: dataToUse.indicators ? Object.keys(dataToUse.indicators) : []
+    });
+    
+    if (!dataToUse.candles?.length) {
+        console.log('⚠️ PriceChart: No candles data available');
+        return (
+            <div style={{ padding: 20, textAlign: 'center', color: '#64748B', fontSize: 14 }}>
+                No price data available for this time range
+            </div>
+        );
+    }
     
     let sliceLen = dataToUse.candles.length;
     if (timeRange === '1M') sliceLen = 21;
@@ -225,6 +275,9 @@ function PriceChart({ candles, indicators, timeRange, intradayData }) {
             ema50: dataToUse.indicators?.EMA_50?.[idx] ?? null,
         };
     });
+    
+    console.log('📊 PriceChart data points:', data.length, 'Sample:', data[0]);
+    
     return (
         <ResponsiveContainer width="100%" height={220}>
             <ComposedChart data={data} margin={{ left: -10, right: 8, top: 4, bottom: 0 }}>
@@ -362,11 +415,20 @@ export default function StockAnalysis() {
         setStock({ ticker, name });
         setQuery(name || ticker);
 
-        // Simple local cache for blazing fast loads (5 min TTL)
+        // Simple local cache for blazing fast loads (10 min TTL - increased from 5)
         const cacheKey = `mm_stock_${ticker}`;
         const parsed = safeGetJson(cacheKey);
         if (parsed) {
-            if (Date.now() - parsed.timestamp < 300000) {
+            if (Date.now() - parsed.timestamp < 600000) {  // 10 minutes
+                console.log('📊 Using cached data for', ticker);
+                console.log('📊 Cached data structure:', {
+                    hasTechnical: !!parsed.data.technical,
+                    hasCandles: !!parsed.data.candles,
+                    hasIndicators: !!parsed.data.indicators,
+                    technicalCandles: parsed.data.technical?.candles?.length || 0,
+                    topLevelCandles: parsed.data.candles?.length || 0,
+                    topLevelIndicators: parsed.data.indicators ? Object.keys(parsed.data.indicators) : []
+                });
                 setData(parsed.data);
                 setLoading(false);
                 return;
@@ -374,10 +436,45 @@ export default function StockAnalysis() {
         }
 
         try {
-            // Fetch fundamentals & technicals (Fast ~1s)
-            const res = await fetch(`${API_BASE}/stock/full/${encodeURIComponent(ticker)}`);
-            if (!res.ok) throw new Error(`Server error: ${res.status}`);
+            // Show optimistic loading message
+            console.log('📊 Fetching fresh data for', ticker, '(this may take 10-30s on first load)');
+            
+            // Fetch fundamentals & technicals with longer timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+            
+            const res = await fetch(`${API_BASE}/stock/full/${encodeURIComponent(ticker)}`, {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            
+            if (!res.ok) {
+                if (res.status === 503) {
+                    throw new Error('Server is waking up, please wait 30 seconds and try again');
+                }
+                throw new Error(`Server error: ${res.status}`);
+            }
             const json = await res.json();
+            
+            console.log('📊 Fresh API response for', ticker);
+            console.log('📊 API data structure:', {
+                hasTechnical: !!json.technical,
+                hasCandles: !!json.candles,
+                hasIndicators: !!json.indicators,
+                technicalCandles: json.technical?.candles?.length || 0,
+                topLevelCandles: json.candles?.length || 0,
+                topLevelIndicators: json.indicators ? Object.keys(json.indicators) : [],
+                fullStructure: Object.keys(json)
+            });
+            
+            // Log sample candle data
+            if (json.technical?.candles?.length > 0) {
+                console.log('📊 Sample technical candle:', json.technical.candles[0]);
+            }
+            if (json.candles?.length > 0) {
+                console.log('📊 Sample top-level candle:', json.candles[0]);
+            }
+            
             setData(json);
             
             // Save to cache
@@ -409,6 +506,7 @@ export default function StockAnalysis() {
                 .finally(() => setSentimentLoading(false));
 
         } catch (err) {
+            console.error('📊 Fetch error:', err);
             setError(err.message || 'Failed to fetch stock data');
         } finally {
             setLoading(false);
@@ -661,6 +759,13 @@ export default function StockAnalysis() {
             {/* ── Loading skeleton ── */}
             {loading && (
                 <div className="stock-skeleton-wrap">
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748B' }}>
+                        <RefreshCw size={32} className="stock-search-spin" style={{ marginBottom: 16 }} />
+                        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Loading stock data...</div>
+                        <div style={{ fontSize: 13, color: '#94A3B8' }}>
+                            First load may take 10-30 seconds as the server wakes up
+                        </div>
+                    </div>
                     {[1, 2, 3].map((i) => (
                         <div key={i} className="stock-skeleton-card" />
                     ))}
@@ -828,20 +933,35 @@ export default function StockAnalysis() {
                             <motion.div key="tech" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
                                 <div className="stock-section-title">Price Chart (90 days)</div>
                                 <div className="stock-chart-card">
-                                    <PriceChart candles={data.technicals?.candles} indicators={data.technicals?.indicators} />
+                                    <PriceChart 
+                                        candles={data.technicals?.candles || data.candles} 
+                                        indicators={data.technicals?.indicators || data.indicators} 
+                                        timeRange={timeRange}
+                                        intradayData={intradayData}
+                                    />
                                 </div>
 
                                 <div className="stock-chart-row">
                                     <div className="stock-chart-half">
                                         <div className="stock-section-title" style={{ fontSize: 13 }}>RSI (14)</div>
                                         <div className="stock-chart-card" style={{ padding: '10px 8px 4px' }}>
-                                            <RSIChart candles={data.technicals?.candles} indicators={data.technicals?.indicators} timeRange={timeRange} intradayData={intradayData} />
+                                            <RSIChart 
+                                                candles={data.technicals?.candles || data.candles} 
+                                                indicators={data.technicals?.indicators || data.indicators} 
+                                                timeRange={timeRange} 
+                                                intradayData={intradayData} 
+                                            />
                                         </div>
                                     </div>
                                     <div className="stock-chart-half">
                                         <div className="stock-section-title" style={{ fontSize: 13 }}>MACD (12,26,9)</div>
                                         <div className="stock-chart-card" style={{ padding: '10px 8px 4px' }}>
-                                            <MACDChart candles={data.technicals?.candles} indicators={data.technicals?.indicators} timeRange={timeRange} intradayData={intradayData} />
+                                            <MACDChart 
+                                                candles={data.technicals?.candles || data.candles} 
+                                                indicators={data.technicals?.indicators || data.indicators} 
+                                                timeRange={timeRange} 
+                                                intradayData={intradayData} 
+                                            />
                                         </div>
                                     </div>
                                 </div>
