@@ -1,30 +1,28 @@
 import { useState, useEffect } from 'react';
 import { Bookmark } from 'lucide-react';
 
+import { safeGetJson, safeSetJson } from '../utils/storage';
+
 export default function WatchlistBtn({ symbol, name, showText = false }) {
     const [saved, setSaved] = useState(false);
 
     useEffect(() => {
-        try {
-            const list = JSON.parse(localStorage.getItem('mm_watchlist')) || [];
-            setSaved(list.some(s => s.symbol === symbol));
-        } catch { }
+        const list = safeGetJson('mm_watchlist', []);
+        setSaved(list.some(s => s.symbol === symbol));
     }, [symbol]);
 
     const toggle = (e) => {
         e.stopPropagation();
-        try {
-            let list = JSON.parse(localStorage.getItem('mm_watchlist')) || [];
-            if (saved) {
-                list = list.filter(s => s.symbol !== symbol);
-                setSaved(false);
-            } else {
-                list.push({ symbol, name: name || symbol, added_at: Date.now() });
-                setSaved(true);
-            }
-            localStorage.setItem('mm_watchlist', JSON.stringify(list));
-            window.dispatchEvent(new Event('watchlist_updated'));
-        } catch { }
+        let list = safeGetJson('mm_watchlist', []);
+        if (saved) {
+            list = list.filter(s => s.symbol !== symbol);
+            setSaved(false);
+        } else {
+            list.push({ symbol, name: name || symbol, added_at: Date.now() });
+            setSaved(true);
+        }
+        safeSetJson('mm_watchlist', list);
+        window.dispatchEvent(new Event('watchlist_updated'));
     };
 
     return (

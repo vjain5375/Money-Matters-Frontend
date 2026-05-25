@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     GitCompare, Search, X, Plus, TrendingUp, TrendingDown,
-    RefreshCw, ArrowLeft, AlertCircle
+    RefreshCw, ArrowLeft, AlertCircle, Trash2
 } from 'lucide-react';
 import {
     ResponsiveContainer, LineChart, Line, XAxis, YAxis,
@@ -11,6 +11,8 @@ import {
 } from 'recharts';
 
 const API_BASE = import.meta.env.VITE_STOCK_API_URL || 'http://localhost:8000';
+const COMP_KEY = 'mm_compare_stocks';
+import { safeSetJson, safeGetJson, safeRemoveItem } from '../utils/storage';
 
 /* ─────────────── Comparison Metrics ─────────────────── */
 const COMPARE_METRICS = [
@@ -170,9 +172,23 @@ class ErrorBoundary extends React.Component {
 function StockComparisonInner() {
     const location = useLocation();
     const navigate = useNavigate();
-    const [stocks, setStocks] = useState([]);
+    const [stocks, setStocks] = useState(() => safeGetJson(COMP_KEY, []));
     const [loading, setLoading] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
+
+    useEffect(() => {
+        if (stocks.length > 0) {
+            safeSetJson(COMP_KEY, stocks);
+        } else {
+            safeRemoveItem(COMP_KEY);
+        }
+    }, [stocks]);
+
+    const handleClearAll = useCallback(() => {
+        if (window.confirm('Are you sure you want to clear all stocks from the comparison page?')) {
+            setStocks([]);
+        }
+    }, []);
 
 
 
@@ -230,7 +246,7 @@ function StockComparisonInner() {
     }, []);
 
     const handleStockClick = useCallback((ticker, name) => {
-        navigate('/stocks', { state: { ticker, name } });
+        navigate('/stocks', { state: { ticker, name, from: '/stocks/compare' } });
     }, [navigate]);
 
     const initializedRef = useRef(false);
@@ -253,7 +269,24 @@ function StockComparisonInner() {
             } else {
                 const initialStocks = location.state?.stocks || [];
                 if (initialStocks.length > 0) {
-                    setStocks(initialStocks);
+                    setStocks(prev => {
+                        const next = [...prev];
+                        let skippedSome = false;
+                        for (const s of initialStocks) {
+                            if (!next.find(item => item.ticker === s.ticker)) {
+                                if (next.length < 5) {
+                                    next.push(s);
+                                } else {
+                                    skippedSome = true;
+                                }
+                            }
+                        }
+                        if (skippedSome) {
+                            alert('Maximum 5 stocks can be compared. Some stocks could not be added.');
+                        }
+                        return next;
+                    });
+                    navigate(location.pathname, { replace: true, state: { ...location.state, stocks: [] } });
                 }
             }
         };
@@ -287,14 +320,7 @@ function StockComparisonInner() {
                 transition={{ duration: 0.5 }}
             >
                 <motion.button 
-                    onClick={() => {
-                        const fromPath = location.state?.from || '/stocks';
-                        if (stocks.length > 0) {
-                            navigate(fromPath, { state: { ticker: stocks[0].ticker, name: stocks[0].name } });
-                        } else {
-                            navigate(fromPath);
-                        }
-                    }} 
+                    onClick={() => navigate(-1)} 
                     className="back-btn-enhanced"
                     whileHover={{ scale: 1.05, x: -3 }}
                     whileTap={{ scale: 0.95 }}
@@ -318,18 +344,48 @@ function StockComparisonInner() {
                     </div>
                 </div>
                 
-                <motion.button
-                    onClick={() => setShowAddModal(true)}
-                    className="comparison-add-btn-enhanced"
-                    disabled={stocks.length >= 5}
-                    whileHover={{ scale: stocks.length < 5 ? 1.05 : 1 }}
-                    whileTap={{ scale: stocks.length < 5 ? 0.98 : 1 }}
-                >
-                    <div className="add-btn-icon">
-                        <Plus size={18} />
-                    </div>
-                    <span>Add Stock</span>
-                </motion.button>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    {stocks.length > 0 && (
+                        <motion.button
+                            onClick={handleClearAll}
+                            className="comparison-clear-btn-enhanced"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.98 }}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: '14px 24px',
+                                background: '#FFF1F2',
+                                color: '#E11D48',
+                                border: '1px solid #FFE4E6',
+                                borderRadius: 14,
+                                fontSize: 14,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'all 0.3s'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = '#FFE4E6'; e.currentTarget.style.borderColor = '#FDA4AF'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = '#FFF1F2'; e.currentTarget.style.borderColor = '#FFE4E6'; }}
+                        >
+                            <Trash2 size={18} />
+                            <span>Clear All</span>
+                        </motion.button>
+                    )}
+                    
+                    <motion.button
+                        onClick={() => setShowAddModal(true)}
+                        className="comparison-add-btn-enhanced"
+                        disabled={stocks.length >= 5}
+                        whileHover={{ scale: stocks.length < 5 ? 1.05 : 1 }}
+                        whileTap={{ scale: stocks.length < 5 ? 0.98 : 1 }}
+                    >
+                        <div className="add-btn-icon">
+                            <Plus size={18} />
+                        </div>
+                        <span>Add Stock</span>
+                    </motion.button>
+                </div>
             </motion.div>
 
             {stocks.length === 0 ? (
@@ -551,7 +607,7 @@ function StockComparisonInner() {
                                         </div>
                                         {confidence != null && (
                                             <div style={{ fontSize: 12, color: '#64748B', marginTop: 6 }}>
-                                                Confidence: {(confidence * 100).toFixed(1)}%
+                                                Confidence: {confidence > 1 ? confidence.toFixed(1) : (confidence * 100).toFixed(1)}%
                                             </div>
                                         )}
                                     </div>

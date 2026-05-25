@@ -15,6 +15,7 @@ import {
 import WatchlistBtn from '../components/WatchlistBtn';
 import ComparePanel from '../components/ComparePanel';
 import MiniSparkline from '../components/MiniSparkline';
+import { safeSetJson, safeGetJson } from '../utils/storage';
 
 const API_BASE = import.meta.env.VITE_STOCK_API_URL || 'http://localhost:8000'; // Fallback to local
 
@@ -291,7 +292,8 @@ function ReasonCard({ reasonStr, i }) {
     );
 }
 
-/* ──────────────────────── main page ──────────────────────── */
+
+
 export default function StockAnalysis() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -305,6 +307,7 @@ export default function StockAnalysis() {
     const [error, setError] = useState(null);
     const [market, setMarket] = useState(null);
     const [marketLoading, setMarketLoading] = useState(true);
+    const [backPath, setBackPath] = useState(null);
     
     // Compare Mode State
     const [compareMode, setCompareMode] = useState(false);
@@ -326,7 +329,7 @@ export default function StockAnalysis() {
                 if (res.ok) {
                     const json = await res.json();
                     setMarket(json);
-                    localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: json }));
+                    safeSetJson(cacheKey, { timestamp: Date.now(), data: json });
                 }
             } catch { /* silently fail */ }
             finally { setMarketLoading(false); }
@@ -361,16 +364,13 @@ export default function StockAnalysis() {
 
         // Simple local cache for blazing fast loads (5 min TTL)
         const cacheKey = `mm_stock_${ticker}`;
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-            try {
-                const parsed = JSON.parse(cached);
-                if (Date.now() - parsed.timestamp < 300000) {
-                    setData(parsed.data);
-                    setLoading(false);
-                    return;
-                }
-            } catch (e) {}
+        const parsed = safeGetJson(cacheKey);
+        if (parsed) {
+            if (Date.now() - parsed.timestamp < 300000) {
+                setData(parsed.data);
+                setLoading(false);
+                return;
+            }
         }
 
         try {
@@ -381,10 +381,10 @@ export default function StockAnalysis() {
             setData(json);
             
             // Save to cache
-            localStorage.setItem(cacheKey, JSON.stringify({
+            safeSetJson(cacheKey, {
                 timestamp: Date.now(),
                 data: json
-            }));
+            });
 
             // Lazy-load sentiment & prediction in background!
             setSentimentLoading(true);
@@ -398,10 +398,10 @@ export default function StockAnalysis() {
                             sentiment: predJson._sentiment_data || {},
                             prediction: predJson
                         };
-                        localStorage.setItem(cacheKey, JSON.stringify({
+                        safeSetJson(cacheKey, {
                             timestamp: Date.now(),
                             data: updated
-                        }));
+                        });
                         return updated;
                     });
                 })
@@ -419,6 +419,11 @@ export default function StockAnalysis() {
     useEffect(() => {
         if (location.state?.ticker) {
             fetchStock(location.state.ticker, location.state.name);
+            if (location.state.from) {
+                setBackPath(location.state.from);
+            } else {
+                setBackPath(null);
+            }
             // Clear state so it doesn't refetch on every render/tab change
             navigate(location.pathname, { replace: true, state: {} });
         }
@@ -492,7 +497,15 @@ export default function StockAnalysis() {
             <div className="stock-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, position: 'relative', zIndex: 10, marginBottom: 16 }}>
                 <div className="stock-search-container" style={{ flex: 1, maxWidth: data ? 650 : 450, display: 'flex', alignItems: 'center', gap: 16 }}>
                     {data && (
-                        <button onClick={() => { setData(null); setStock({ ticker: '', name: '' }); setQuery(''); }} 
+                        <button onClick={() => {
+                            if (backPath) {
+                                navigate(backPath);
+                            } else {
+                                setData(null);
+                                setStock({ ticker: '', name: '' });
+                                setQuery('');
+                            }
+                        }} 
                             style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                                 background: 'rgba(255, 255, 255, 0.95)', border: '2px solid transparent', color: '#0F172A',
@@ -550,71 +563,69 @@ export default function StockAnalysis() {
 
                 </div>
 
-                {!data && !loading && !error && (
-                    <div className="stock-header-widgets" style={{ display: 'flex', alignItems: 'stretch', gap: 16 }}>
-                        {market?.commodities && (
-                            <div className="stock-header-commodities" style={{ display: 'flex', gap: 16, background: '#F8FAFC', padding: '12px 20px', borderRadius: 16, border: '1px solid #E2E8F0' }}>
-                                {Object.entries(market.commodities).map(([name, idx]) => {
-                                    const up = idx.change_pct >= 0;
-                                    let displayName = name;
-                                    let displayPrice = idx.price;
-                                    let prefix = '';
-                                    
-                                    const inrRate = market.commodities['USD / INR']?.price || 83.5;
+                <div className="stock-header-widgets" style={{ display: 'flex', alignItems: 'stretch', gap: 16 }}>
+                    {market?.commodities && (
+                        <div className="stock-header-commodities" style={{ display: 'flex', gap: 16, background: '#F8FAFC', padding: '12px 20px', borderRadius: 16, border: '1px solid #E2E8F0' }}>
+                            {Object.entries(market.commodities).map(([name, idx]) => {
+                                const up = idx.change_pct >= 0;
+                                let displayName = name;
+                                let displayPrice = idx.price;
+                                let prefix = '';
+                                
+                                const inrRate = market.commodities['USD / INR']?.price || 83.5;
 
-                                    if (name === 'Gold (10g)') {
-                                        displayName = 'Gold (24K - 10g)';
-                                        displayPrice = idx.price;
-                                        prefix = '₹';
-                                    } else if (name === 'Silver (1kg)') {
-                                        displayName = 'Silver (1kg)';
-                                        displayPrice = idx.price;
-                                        prefix = '₹';
-                                    } else if (name === 'USD / INR') {
-                                        prefix = '₹';
-                                    }
+                                if (name === 'Gold (10g)') {
+                                    displayName = 'Gold (24K - 10g)';
+                                    displayPrice = idx.price;
+                                    prefix = '₹';
+                                } else if (name === 'Silver (1kg)') {
+                                    displayName = 'Silver (1kg)';
+                                    displayPrice = idx.price;
+                                    prefix = '₹';
+                                } else if (name === 'USD / INR') {
+                                    prefix = '₹';
+                                }
 
-                                    return (
-                                        <div key={name} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                                            <div style={{ fontSize: 10, color: '#64748B', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{displayName}</div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                                                <span style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>
-                                                    {prefix}{displayPrice?.toLocaleString('en-IN', { maximumFractionDigits: name.includes('Silver') ? 0 : 1 })}
-                                                </span>
-                                                <span style={{ fontSize: 12, fontWeight: 600, color: up ? '#10B981' : '#EF4444' }}>
-                                                    {up ? '▲' : '▼'}{Math.abs(idx.change_pct).toFixed(2)}%
-                                                </span>
-                                            </div>
+                                return (
+                                    <div key={name} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                        <div style={{ fontSize: 10, color: '#64748B', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{displayName}</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                                            <span style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>
+                                                {prefix}{displayPrice?.toLocaleString('en-IN', { maximumFractionDigits: name.includes('Silver') ? 0 : 1 })}
+                                            </span>
+                                            <span style={{ fontSize: 12, fontWeight: 600, color: up ? '#10B981' : '#EF4444' }}>
+                                                {up ? '▲' : '▼'}{Math.abs(idx.change_pct).toFixed(2)}%
+                                            </span>
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-
-                        <div className="stock-header-buttons" style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
-                            <button onClick={() => navigate('/stocks/watchlist')}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 8,
-                                    background: '#ffffff', border: '1px solid #E2E8F0', padding: '0 20px', borderRadius: 16,
-                                    color: '#0F172A', fontWeight: 600, fontSize: 14, cursor: 'pointer',
-                                    transition: 'all 0.2s', boxShadow: '0 2px 10px rgba(15,23,42,0.03)'
-                                }}
-                            >
-                                <Bookmark size={18} color="#4F46E5" /> Watchlist
-                            </button>
-                            <button onClick={() => navigate('/stocks/compare', { state: { from: '/stocks' } })}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 8,
-                                    background: '#ffffff', border: '1px solid #E2E8F0', padding: '0 20px', borderRadius: 16,
-                                    color: '#0F172A', fontWeight: 600, fontSize: 14, cursor: 'pointer',
-                                    transition: 'all 0.2s', boxShadow: '0 2px 10px rgba(15,23,42,0.03)'
-                                }}
-                            >
-                                <BarChart2 size={18} color="#4F46E5" /> Compare
-                            </button>
+                                    </div>
+                                );
+                            })}
                         </div>
+                    )}
+
+                    <div className="stock-header-buttons" style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
+                        <button onClick={() => navigate('/stocks/watchlist')}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                background: '#ffffff', border: '1px solid #E2E8F0', padding: '0 20px', borderRadius: 16,
+                                color: '#0F172A', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                                transition: 'all 0.2s', boxShadow: '0 2px 10px rgba(15,23,42,0.03)'
+                            }}
+                        >
+                            <Bookmark size={18} color="#4F46E5" /> Watchlist
+                        </button>
+                        <button onClick={() => navigate('/stocks/compare', { state: { from: '/stocks' } })}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                background: '#ffffff', border: '1px solid #E2E8F0', padding: '0 20px', borderRadius: 16,
+                                color: '#0F172A', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                                transition: 'all 0.2s', boxShadow: '0 2px 10px rgba(15,23,42,0.03)'
+                            }}
+                        >
+                            <BarChart2 size={18} color="#4F46E5" /> Compare
+                        </button>
                     </div>
-                )}
+                </div>
             </div>
 
             {/* ── Popular chips ── */}

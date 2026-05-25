@@ -28,6 +28,7 @@ import Watchlist from './pages/Watchlist';
 import StockComparison from './pages/StockComparison';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import { safeSetItem, safeGetItem, safeSetJson, safeGetJson } from './utils/storage';
 import ResetPassword from './pages/ResetPassword';
 import Terms from './pages/Terms';
 import PrivacyPolicy from './pages/PPolicy';
@@ -214,17 +215,9 @@ function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [notifications, setNotifications] = useState(() => {
-    try {
-      const saved = localStorage.getItem('mm_notifications');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Filter out any legacy hardcoded placeholder notifications
-        return parsed.filter(n => n.id !== 1 && n.id !== 2 && n.id !== 3 && n.id !== 4 && !String(n.id).includes('budget-dining'));
-      }
-      return [];
-    } catch {
-      return [];
-    }
+    const parsed = safeGetJson('mm_notifications', []);
+    // Filter out any legacy hardcoded placeholder notifications
+    return parsed.filter(n => n.id !== 1 && n.id !== 2 && n.id !== 3 && n.id !== 4 && !String(n.id).includes('budget-dining'));
   });
 
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
@@ -237,11 +230,8 @@ function Header() {
     const initializeAndFetchNotifications = async () => {
       try {
         const { display } = getUserInfo(user);
-        const saved = localStorage.getItem('mm_notifications');
-        let list = saved ? JSON.parse(saved) : [];
-
-        // Filter out legacy static IDs and the old budget-dining alert
-        list = list.filter(n => n.id !== 1 && n.id !== 2 && n.id !== 3 && n.id !== 4 && !String(n.id).includes('budget-dining'));
+        const parsed = safeGetJson('mm_notifications', []);
+        let list = parsed.filter(n => n.id !== 1 && n.id !== 2 && n.id !== 3 && n.id !== 4 && !String(n.id).includes('budget-dining'));
 
         // Clear stock market notifications from previous sessions
         const sessionStart = getMostRecentMarketSessionStart();
@@ -259,7 +249,7 @@ function Header() {
         // Check if there is a welcome notification for this user
         const welcomeId = `welcome-${user.id}`;
         const welcomeShownKey = `mm_welcome_shown_${user.id}`;
-        const welcomeShown = localStorage.getItem(welcomeShownKey);
+        const welcomeShown = safeGetItem(welcomeShownKey);
 
         if (!welcomeShown) {
           const hasWelcome = list.some(n => n.id === welcomeId);
@@ -273,7 +263,7 @@ function Header() {
               read: false
             });
           }
-          localStorage.setItem(welcomeShownKey, 'true');
+          safeSetItem(welcomeShownKey, 'true');
         }
 
         // Fetch user budgets and transactions from Supabase
@@ -409,7 +399,7 @@ function Header() {
 
         // Limit maximum notifications to 15
         const finalMerged = list.slice(0, 15);
-        localStorage.setItem('mm_notifications', JSON.stringify(finalMerged));
+        safeSetJson('mm_notifications', finalMerged);
         setNotifications(finalMerged);
 
       } catch (error) {
@@ -441,26 +431,26 @@ function Header() {
   const markRead = (id) => {
     const updated = notifications.map(n => n.id === id ? { ...n, read: true } : n);
     setNotifications(updated);
-    localStorage.setItem('mm_notifications', JSON.stringify(updated));
+    safeSetJson('mm_notifications', updated);
   };
 
   const markAllRead = () => {
     const updated = notifications.map(n => ({ ...n, read: true }));
     setNotifications(updated);
-    localStorage.setItem('mm_notifications', JSON.stringify(updated));
+    safeSetJson('mm_notifications', updated);
     message.success('All notifications marked as read');
   };
 
   const clearAll = () => {
     setNotifications([]);
-    localStorage.setItem('mm_notifications', JSON.stringify([]));
+    safeSetJson('mm_notifications', []);
     message.success('Notifications cleared');
   };
 
   const clearNotification = (id) => {
     const updated = notifications.filter(n => n.id !== id);
     setNotifications(updated);
-    localStorage.setItem('mm_notifications', JSON.stringify(updated));
+    safeSetJson('mm_notifications', updated);
   };
 
   const { title, subtitle } = HEADER_MAP[pathname] || { title: 'Money Matters', subtitle: '' };

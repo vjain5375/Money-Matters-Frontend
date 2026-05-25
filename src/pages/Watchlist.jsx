@@ -8,11 +8,10 @@ import {
 
 const API_BASE = import.meta.env.VITE_STOCK_API_URL || 'https://money-matters-backend-pc4i.onrender.com';
 const WL_KEY = 'mm_watchlist';
+import { safeSetJson, safeGetJson } from '../utils/storage';
 
-/* ─────────────── Helpers ─────────────────── */
 const getWatchlist = () => {
-    try { return JSON.parse(localStorage.getItem(WL_KEY) || '[]'); }
-    catch { return []; }
+    return safeGetJson(WL_KEY, []);
 };
 
 /* ─────────────── Mini Sparkline ─────────────────── */
@@ -162,13 +161,13 @@ export default function Watchlist() {
 
     const handleRemove = useCallback((tickerSymbol) => {
         const updated = watchlist.filter(t => (typeof t === 'string' ? t : t.symbol) !== tickerSymbol);
-        localStorage.setItem(WL_KEY, JSON.stringify(updated));
+        safeSetJson(WL_KEY, updated);
         setWatchlistState(updated);
         window.dispatchEvent(new Event('watchlist_updated'));
     }, [watchlist]);
 
     const handleView = useCallback((ticker, name) => {
-        navigate('/stocks', { state: { ticker, name } });
+        navigate('/stocks', { state: { ticker, name, from: '/stocks/watchlist' } });
     }, [navigate]);
 
     const handleCompare = useCallback((ticker, name, fundamentals) => {
@@ -181,7 +180,7 @@ export default function Watchlist() {
 
     const handleClearAll = () => {
         if (window.confirm('Remove all stocks from watchlist?')) {
-            localStorage.setItem(WL_KEY, JSON.stringify([]));
+            safeSetJson(WL_KEY, []);
             setWatchlistState([]);
         }
     };
@@ -239,7 +238,7 @@ export default function Watchlist() {
                     <BookmarkCheck size={48} style={{ color: '#CBD5E1', marginBottom: 16 }} />
                     <h2>Your watchlist is empty</h2>
                     <p>Search and add stocks from the analysis page to track them here.</p>
-                    <button onClick={() => navigate('/stocks')} className="watchlist-empty-btn">
+                    <button onClick={() => navigate('/stocks')} className="watchlist-cta-btn">
                         Explore Stocks
                     </button>
                 </motion.div>
