@@ -49,6 +49,7 @@ export default function PublicFooter() {
             <div style={S.colLinks}>
               <Link to="/terms" style={S.footLink}>Terms of Service</Link>
               <Link to="/privacy" style={S.footLink}>Privacy Policy</Link>
+              <Link to="/docs" style={S.footLink}>Help & Docs</Link>
             </div>
           </div>
 
