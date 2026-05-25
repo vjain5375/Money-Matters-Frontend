@@ -17,6 +17,9 @@ import {
   CheckCircle,
   AlertTriangle,
   Info,
+  Mail,
+  ShieldCheck,
+  FileText,
 } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AddTransaction from './components/AddTransaction';
@@ -37,6 +40,7 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './supabaseClient';
+import HelpDocs from './pages/HelpDocs';
 import './index.css';
 
 const { Sider } = Layout;
@@ -51,6 +55,9 @@ const NAV_ITEMS = [
   { key: 'budgets', path: '/budgets', icon: Wallet, label: 'Budgets' },
   { key: 'stocks', path: '/stocks', icon: TrendingUp, label: 'Stocks' },
   { key: 'settings', path: '/settings', icon: Settings, label: 'Settings' },
+  { key: 'contact', path: '/contact', icon: Mail, label: 'Contact Us' },
+  { key: 'privacy', path: '/privacy', icon: ShieldCheck, label: 'Privacy Policy' },
+  { key: 'terms', path: '/terms', icon: FileText, label: 'Terms & Conditions' },
 ];
 
 const HEADER_MAP = {
@@ -60,6 +67,7 @@ const HEADER_MAP = {
   '/budgets': { title: 'Budgets', subtitle: 'Set monthly limits and track spending' },
   '/stocks': { title: 'Stock Analyser', subtitle: '' },
   '/settings': { title: 'Settings', subtitle: 'Account & notification preferences' },
+  '/docs': { title: 'Help & Documentation', subtitle: 'Guides, tutorials, and support for Money Matters All' },
 };
 
 /* ─── Helpers ─── */
@@ -146,7 +154,7 @@ function Sidebar() {
           </div>
         </Tooltip>
 
-        <div className="mm-sidebar-action" onClick={() => message.info('Help & documentation')}>
+        <div className="mm-sidebar-action" onClick={() => navigate('/docs')}>
           <span className="mm-menu-icon"><HelpCircle size={14} /></span>
           Help & Docs
         </div>
@@ -685,7 +693,18 @@ function Header() {
           })}
         </div>
 
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div 
+            className="mm-sidebar-action" 
+            onClick={() => {
+              navigate('/docs');
+              setMobileMenuOpen(false);
+            }}
+            style={{ padding: '6px 0', color: '#94A3B8' }}
+          >
+            <span className="mm-menu-icon" style={{ display: 'inline-flex', alignItems: 'center', marginRight: 10 }}><HelpCircle size={16} /></span>
+            Help & Docs
+          </div>
           <div 
             className="mm-sidebar-action danger" 
             onClick={async () => {
@@ -693,9 +712,9 @@ function Header() {
               setMobileMenuOpen(false);
               message.success('Signed out');
             }}
-            style={{ padding: '10px 0' }}
+            style={{ padding: '6px 0' }}
           >
-            <LogOut size={16} style={{ marginRight: 10 }} />
+            <span className="mm-menu-icon" style={{ display: 'inline-flex', alignItems: 'center', marginRight: 10 }}><LogOut size={16} /></span>
             Sign Out
           </div>
         </div>
@@ -754,6 +773,7 @@ function DashboardLayout() {
               <Route path="/stocks/watchlist" element={<Watchlist />} />
               <Route path="/stocks/compare" element={<StockComparison />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/docs" element={<HelpDocs />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </PageTransition>
