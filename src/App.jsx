@@ -821,7 +821,6 @@ function DashboardLayout() {
               <Route path="/stocks/watchlist" element={<Watchlist />} />
               <Route path="/stocks/compare" element={<StockComparison />} />
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/docs" element={<HelpDocs />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </PageTransition>
@@ -855,6 +854,7 @@ export default function App() {
       <Route path="/contact" element={<Contact />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/docs" element={<HelpDocs />} />
       {/* Auth pages — redirect to dashboard if already logged in */}
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/signup" element={user ? <Navigate to="/" replace /> : <Signup />} />

@@ -7,6 +7,8 @@ import {
     RightOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import PublicNavbar from '../components/PublicNavbar';
+import PublicFooter from '../components/PublicFooter';
 
 const ARTICLES = [
     {
@@ -128,6 +130,7 @@ export default function HelpDocs() {
 
     return (
         <div style={S.pageWrapper}>
+            <PublicNavbar />
             <div style={S.innerContainer}>
                 
                 {/* Header Search Hero (Dark styled) */}
@@ -213,6 +216,7 @@ export default function HelpDocs() {
                 </Card>
 
             </div>
+            <PublicFooter />
         </div>
     );
 }
@@ -220,11 +224,11 @@ export default function HelpDocs() {
 const S = {
     pageWrapper: {
         background: '#0B0F19',
-        minHeight: 'calc(100vh - 60px)',
+        minHeight: '100vh',
         color: '#94A3B8',
         fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
         margin: 0,
-        padding: '32px 0 64px',
+        padding: '130px 0 64px',
         boxSizing: 'border-box'
     },
     innerContainer: {
