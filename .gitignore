@@ -23,9 +23,10 @@ dist-ssr
 *.sw?
 
 # ── Environment files ─────────────────────────────────────────────
-# .env.local     — local dev overrides (localhost URLs) — NEVER commit
-# .env.production — committed intentionally (only public API URLs + anon keys)
+# Ignore all .env files except .env.example
 .env
-.env.local
+.env.*
+!.env.example
 *.local
+
 
