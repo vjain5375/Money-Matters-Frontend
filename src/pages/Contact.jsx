@@ -38,7 +38,9 @@ export default function Contact() {
                     user_id: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
                     template_params: {
                         name: form.name,
+                        from_name: form.name,
                         email: form.email,
+                        reply_to: form.email,
                         subject: form.subject,
                         message: form.message
                     }
