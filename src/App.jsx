@@ -55,9 +55,6 @@ const NAV_ITEMS = [
   { key: 'budgets', path: '/budgets', icon: Wallet, label: 'Budgets' },
   { key: 'stocks', path: '/stocks', icon: TrendingUp, label: 'Stocks' },
   { key: 'settings', path: '/settings', icon: Settings, label: 'Settings' },
-  { key: 'contact', path: '/contact', icon: Mail, label: 'Contact Us' },
-  { key: 'privacy', path: '/privacy', icon: ShieldCheck, label: 'Privacy Policy' },
-  { key: 'terms', path: '/terms', icon: FileText, label: 'Terms & Conditions' },
 ];
 
 const HEADER_MAP = {
@@ -157,6 +154,18 @@ function Sidebar() {
         <div className="mm-sidebar-action" onClick={() => navigate('/docs')}>
           <span className="mm-menu-icon"><HelpCircle size={14} /></span>
           Help & Docs
+        </div>
+        <div className="mm-sidebar-action" onClick={() => navigate('/contact')}>
+          <span className="mm-menu-icon"><Mail size={14} /></span>
+          Contact Us
+        </div>
+        <div className="mm-sidebar-action" onClick={() => navigate('/privacy')}>
+          <span className="mm-menu-icon"><ShieldCheck size={14} /></span>
+          Privacy Policy
+        </div>
+        <div className="mm-sidebar-action" onClick={() => navigate('/terms')}>
+          <span className="mm-menu-icon"><FileText size={14} /></span>
+          Terms & Conditions
         </div>
         <div
           className="mm-sidebar-action danger"
@@ -704,6 +713,39 @@ function Header() {
           >
             <span className="mm-menu-icon" style={{ display: 'inline-flex', alignItems: 'center', marginRight: 10 }}><HelpCircle size={16} /></span>
             Help & Docs
+          </div>
+          <div 
+            className="mm-sidebar-action" 
+            onClick={() => {
+              navigate('/contact');
+              setMobileMenuOpen(false);
+            }}
+            style={{ padding: '6px 0', color: '#94A3B8' }}
+          >
+            <span className="mm-menu-icon" style={{ display: 'inline-flex', alignItems: 'center', marginRight: 10 }}><Mail size={16} /></span>
+            Contact Us
+          </div>
+          <div 
+            className="mm-sidebar-action" 
+            onClick={() => {
+              navigate('/privacy');
+              setMobileMenuOpen(false);
+            }}
+            style={{ padding: '6px 0', color: '#94A3B8' }}
+          >
+            <span className="mm-menu-icon" style={{ display: 'inline-flex', alignItems: 'center', marginRight: 10 }}><ShieldCheck size={16} /></span>
+            Privacy Policy
+          </div>
+          <div 
+            className="mm-sidebar-action" 
+            onClick={() => {
+              navigate('/terms');
+              setMobileMenuOpen(false);
+            }}
+            style={{ padding: '6px 0', color: '#94A3B8' }}
+          >
+            <span className="mm-menu-icon" style={{ display: 'inline-flex', alignItems: 'center', marginRight: 10 }}><FileText size={16} /></span>
+            Terms & Conditions
           </div>
           <div 
             className="mm-sidebar-action danger" 
