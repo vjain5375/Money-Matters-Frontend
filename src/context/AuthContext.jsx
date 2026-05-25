@@ -3,6 +3,25 @@ import { supabase } from '../supabaseClient';
 
 const AuthContext = createContext(null);
 
+const mapAuthEmailError = (error) => {
+    if (!error) return null;
+
+    const msg = error.message || '';
+    const isProviderIssue =
+        error.code === 'unexpected_failure' &&
+        (
+            msg.includes('Error sending magic link email') ||
+            msg.includes('Error sending recovery email')
+        );
+
+    if (!isProviderIssue) return error;
+
+    return {
+        ...error,
+        message: 'Email delivery is currently unavailable. Check Supabase Auth email settings (SMTP/templates) and ensure the project is active.',
+    };
+};
+
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(undefined); // undefined = loading
     const [loading, setLoading] = useState(true);
@@ -40,7 +59,7 @@ export function AuthProvider({ children }) {
             email,
             options: { shouldCreateUser: true },
         });
-        return { data, error };
+        return { data, error: mapAuthEmailError(error) };
     };
 
     const verifyOtp = async (email, token) => {
@@ -49,7 +68,7 @@ export function AuthProvider({ children }) {
             token,
             type: 'email',
         });
-        return { data, error };
+        return { data, error: mapAuthEmailError(error) };
     };
 
     const updateProfile = async (updates) => {

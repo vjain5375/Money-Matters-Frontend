@@ -76,7 +76,10 @@ function FieldLabel({ icon, text }) {
 }
 
 /* ─── Main component ─── */
-const ML_API = 'https://money-matters-backend-pc4i.onrender.com';
+// Reads from VITE_API_URL env var — set in .env.local for dev, Vercel env vars for prod
+const ML_API = import.meta.env.VITE_API_URL
+    || import.meta.env.VITE_STOCK_API_URL
+    || 'https://money-matters-backend-pc4i.onrender.com';
 
 export default function AddTransaction() {
     const [form] = Form.useForm();
@@ -109,7 +112,16 @@ export default function AddTransaction() {
         }
     };
 
-    useEffect(() => { fetchTxns(); }, []);
+    useEffect(() => { 
+        fetchTxns(); 
+        
+        // Auto-fill category from URL
+        const params = new URLSearchParams(window.location.search);
+        const catParam = params.get('category');
+        if (catParam) {
+            form.setFieldsValue({ category: catParam });
+        }
+    }, [form]);
 
     /* ── Add transaction ── */
     const onFinish = async (values) => {
@@ -134,6 +146,7 @@ export default function AddTransaction() {
             // Refresh the feed
             await fetchTxns();
             setSubmitted(true);
+            window.dispatchEvent(new Event('refresh-notifications'));
 
             message.success({
                 content: `₹${values.amount.toLocaleString('en-IN')} ${txnType === 'debit' ? 'expense' : 'income'} logged!`,
@@ -161,6 +174,7 @@ export default function AddTransaction() {
             const { error } = await supabase.from('transactions').delete().eq('id', id);
             if (error) throw error;
             setRecentTxns((prev) => prev.filter((t) => t.id !== id));
+            window.dispatchEvent(new Event('refresh-notifications'));
             message.success({ content: 'Transaction deleted.', duration: 2 });
         } catch (err) {
             message.error({ content: `Delete failed: ${err.message}`, duration: 4 });
@@ -174,7 +188,7 @@ export default function AddTransaction() {
     const totalCredit = recentTxns.filter(t => t.type === 'credit').reduce((s, t) => s + Number(t.amount), 0);
 
     return (
-        <div style={{ maxWidth: 1080, margin: '0 auto', width: '100%' }}>
+        <div style={{ width: '100%' }}>
 
             {/* ── Page header ── */}
             <div className="mm-page-header">
@@ -184,7 +198,7 @@ export default function AddTransaction() {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 18, alignItems: 'start' }}>
+            <div className="mm-txn-grid">
 
                 {/* ── Form card ── */}
                 <div className="mm-card" style={{ padding: '28px 30px 32px' }}>
@@ -204,14 +218,14 @@ export default function AddTransaction() {
                                 { label: '💸 Expense', value: 'debit' },
                                 { label: '💰 Income', value: 'credit' },
                             ]}
-                            style={{ fontWeight: 600, fontSize: 13 }}
+                            className="mm-txn-type-toggle"
                         />
                     </div>
 
                     <Form form={form} layout="vertical" onFinish={onFinish} requiredMark={false}>
 
                         {/* Row 1: Amount + Description */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="mm-form-row">
                             <Form.Item
                                 name="amount"
                                 label={<FieldLabel icon={<WalletOutlined style={{ color: '#6c63ff' }} />} text="Amount" />}
@@ -289,7 +303,7 @@ export default function AddTransaction() {
                         </div>
 
                         {/* Row 2: Date + Category (expense) / Date only (income) */}
-                        <div style={{ display: 'grid', gridTemplateColumns: txnType === 'debit' ? '1fr 1fr' : '1fr', gap: 16 }}>
+                        <div className="mm-form-row" style={{ gridTemplateColumns: txnType === 'debit' ? '1fr 1fr' : '1fr' }}>
                             <Form.Item
                                 name="date"
                                 label={<FieldLabel icon={<CalendarOutlined style={{ color: '#6c63ff' }} />} text="Date" />}

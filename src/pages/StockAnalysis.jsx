@@ -1,7 +1,8 @@
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Search, TrendingUp, TrendingDown, Minus, RefreshCw,
+    ArrowLeft, Search, TrendingUp, Bookmark, TrendingDown, Minus, RefreshCw,
     BarChart2, Newspaper, Target, Info, ExternalLink,
     ChevronDown, CheckCircle, AlertTriangle, XCircle,
 } from 'lucide-react';
@@ -11,7 +12,76 @@ import {
     ReferenceLine, Legend,
 } from 'recharts';
 
+import WatchlistBtn from '../components/WatchlistBtn';
+import ComparePanel from '../components/ComparePanel';
+import MiniSparkline from '../components/MiniSparkline';
+
 const API_BASE = import.meta.env.VITE_STOCK_API_URL || 'http://localhost:8000'; // Fallback to local
+
+const formatChartDate = (dateStr, timeRange) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const isMidnight = dateStr.includes('00:00:00') || dateStr.length <= 10;
+    
+    if (timeRange === '1D') {
+        return isMidnight ? d.toLocaleDateString([], { month: 'short', day: 'numeric' }) : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    if (timeRange === '1W' || timeRange === '1M') {
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric' }); // e.g. "May 20"
+    }
+    if (timeRange === '6M' || timeRange === '1Y') {
+        return d.toLocaleDateString([], { month: 'short', year: '2-digit' }); // e.g. "May 26"
+    }
+    if (timeRange === '5Y') {
+        return d.toLocaleDateString([], { month: 'short', year: '2-digit' }); // e.g. "May 26"
+    }
+    
+    return d.toLocaleDateString();
+};
+
+const formatTooltipDate = (dateStr, timeRange) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const isMidnight = dateStr.includes('00:00:00') || dateStr.length <= 10;
+    
+    if (timeRange === '1D') return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (timeRange === '1W') {
+        return isMidnight 
+            ? d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+            : `${d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }); // e.g. "May 20, 2026"
+};
+
+const getUniqueTicks = (data, timeRange) => {
+    if (timeRange === '1W') {
+        const ticks = [];
+        let lastDay = "";
+        data.forEach(d => {
+            if (!d.rawDate) return;
+            const day = d.rawDate.split(' ')[0];
+            if (day !== lastDay) {
+                ticks.push(d.rawDate);
+                lastDay = day;
+            }
+        });
+        return ticks;
+    }
+    if (timeRange === '6M' || timeRange === '1Y') {
+        const ticks = [];
+        let lastMonth = "";
+        data.forEach(d => {
+            if (!d.rawDate) return;
+            const month = d.rawDate.substring(0, 7); // YYYY-MM
+            if (month !== lastMonth) {
+                ticks.push(d.rawDate);
+                lastMonth = month;
+            }
+        });
+        return ticks;
+    }
+    return undefined;
+};
 
 /* ────────────────────────── helpers ────────────────────────── */
 const fmt = (v, decimals = 2, prefix = '') =>
@@ -54,6 +124,7 @@ function MetricCard({ label, value, sub, color }) {
                 {value}
             </div>
             {sub && <div className="stock-metric-sub">{sub}</div>}
+            
         </div>
     );
 }
@@ -78,19 +149,22 @@ function SignalBadge({ signal, size = 'sm' }) {
 }
 
 /* RSI line chart */
-function RSIChart({ indicators, candles }) {
-    if (!indicators?.RSI_14 || !candles) return null;
-    const data = candles.slice(-90).map((c, i) => ({
-        date: c.date,
-        rsi: indicators.RSI_14[candles.length - 90 + i] ?? null,
+function RSIChart({ candles, indicators, timeRange, intradayData }) {
+    const dataToUse = (timeRange === '1D' || timeRange === '1W') && intradayData ? intradayData : { candles, indicators };
+    if (!dataToUse.indicators?.RSI_14 || !dataToUse.candles?.length) return null;
+    
+    const sliceStart = Math.max(0, dataToUse.candles.length - 90);
+    const data = dataToUse.candles.slice(sliceStart).map((c, i) => ({
+        rawDate: c.date,
+        rsi: dataToUse.indicators.RSI_14[sliceStart + i] ?? null,
     }));
     return (
         <ResponsiveContainer width="100%" height={120}>
             <ComposedChart data={data} margin={{ left: -20, right: 8, top: 4, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} interval={29} />
+                <XAxis dataKey="rawDate" tickFormatter={(v) => formatChartDate(v, timeRange)} ticks={getUniqueTicks(data, timeRange)} tick={{ fontSize: 10 }} minTickGap={30} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v) => [v?.toFixed(1), 'RSI']} labelFormatter={(l) => l} />
+                <Tooltip formatter={(v) => [v?.toFixed(1), 'RSI']} labelFormatter={(l) => formatTooltipDate(l, timeRange)} />
                 <ReferenceLine y={70} stroke="#EF4444" strokeDasharray="4 4" label={{ value: 'OB', fontSize: 10, fill: '#EF4444' }} />
                 <ReferenceLine y={30} stroke="#10B981" strokeDasharray="4 4" label={{ value: 'OS', fontSize: 10, fill: '#10B981' }} />
                 <Line type="monotone" dataKey="rsi" stroke="#6366F1" strokeWidth={1.5} dot={false} />
@@ -100,24 +174,27 @@ function RSIChart({ indicators, candles }) {
 }
 
 /* MACD histogram */
-function MACDChart({ indicators, candles }) {
-    if (!indicators?.MACD || !candles) return null;
-    const data = candles.slice(-90).map((c, i) => {
-        const idx = candles.length - 90 + i;
+function MACDChart({ candles, indicators, timeRange, intradayData }) {
+    const dataToUse = (timeRange === '1D' || timeRange === '1W') && intradayData ? intradayData : { candles, indicators };
+    if (!dataToUse.indicators?.MACD || !dataToUse.candles?.length) return null;
+    
+    const sliceStart = Math.max(0, dataToUse.candles.length - 90);
+    const data = dataToUse.candles.slice(sliceStart).map((c, i) => {
+        const idx = sliceStart + i;
         return {
-            date: c.date,
-            macd: indicators.MACD?.[idx] ?? null,
-            signal: indicators.MACD_signal?.[idx] ?? null,
-            hist: indicators.MACD_hist?.[idx] ?? null,
+            rawDate: c.date,
+            macd: dataToUse.indicators.MACD?.[idx] ?? null,
+            signal: dataToUse.indicators.MACD_signal?.[idx] ?? null,
+            hist: dataToUse.indicators.MACD_hist?.[idx] ?? null,
         };
     });
     return (
         <ResponsiveContainer width="100%" height={120}>
             <ComposedChart data={data} margin={{ left: -20, right: 8, top: 4, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} interval={29} />
+                <XAxis dataKey="rawDate" tickFormatter={(v) => formatChartDate(v, timeRange)} ticks={getUniqueTicks(data, timeRange)} tick={{ fontSize: 10 }} minTickGap={30} />
                 <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v, n) => [v?.toFixed(3), n]} />
+                <Tooltip formatter={(v, n) => [v?.toFixed(3), n]} labelFormatter={(l) => formatTooltipDate(l, timeRange)} />
                 <ReferenceLine y={0} stroke="#94A3B8" />
                 <Bar dataKey="hist" name="Histogram" fill="#6366F1" opacity={0.7} />
                 <Line type="monotone" dataKey="macd" stroke="#10B981" strokeWidth={1.5} dot={false} name="MACD" />
@@ -128,25 +205,32 @@ function MACDChart({ indicators, candles }) {
 }
 
 /* Price line chart with EMA overlays */
-function PriceChart({ candles, indicators }) {
-    if (!candles?.length) return null;
-    const last90 = candles.slice(-90);
-    const data = last90.map((c, i) => {
-        const idx = candles.length - 90 + i;
+function PriceChart({ candles, indicators, timeRange, intradayData }) {
+    const dataToUse = (timeRange === '1D' || timeRange === '1W') && intradayData ? intradayData : { candles, indicators };
+    if (!dataToUse.candles?.length) return null;
+    
+    let sliceLen = dataToUse.candles.length;
+    if (timeRange === '1M') sliceLen = 21;
+    else if (timeRange === '6M') sliceLen = 126;
+    else if (timeRange === '1Y') sliceLen = 252;
+    
+    const sliceStart = Math.max(0, dataToUse.candles.length - sliceLen);
+    const data = dataToUse.candles.slice(sliceStart).map((c, i) => {
+        const idx = sliceStart + i;
         return {
-            date: c.date,
+            rawDate: c.date,
             close: c.close,
-            ema20: indicators?.EMA_20?.[idx] ?? null,
-            ema50: indicators?.EMA_50?.[idx] ?? null,
+            ema20: dataToUse.indicators?.EMA_20?.[idx] ?? null,
+            ema50: dataToUse.indicators?.EMA_50?.[idx] ?? null,
         };
     });
     return (
         <ResponsiveContainer width="100%" height={220}>
             <ComposedChart data={data} margin={{ left: -10, right: 8, top: 4, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} interval={14} />
+                <XAxis dataKey="rawDate" tickFormatter={(v) => formatChartDate(v, timeRange)} ticks={getUniqueTicks(data, timeRange)} tick={{ fontSize: 10 }} minTickGap={30} />
                 <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v, n) => [`₹${v?.toFixed(2)}`, n]} />
+                <Tooltip formatter={(v, n) => [`₹${v?.toFixed(2)}`, n]} labelFormatter={(l) => formatTooltipDate(l, timeRange)} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Line type="monotone" dataKey="close" stroke="#6366F1" strokeWidth={2} dot={false} name="Price" />
                 <Line type="monotone" dataKey="ema20" stroke="#10B981" strokeWidth={1.2} dot={false} name="EMA 20" strokeDasharray="4 2" />
@@ -156,8 +240,61 @@ function PriceChart({ candles, indicators }) {
     );
 }
 
+/* Reason Card for Prediction */
+function ReasonCard({ reasonStr, i }) {
+    const [expanded, setExpanded] = useState(false);
+    
+    // Clean emojis
+    const cleanText = reasonStr.replace(/^[➡️✅🔴⚠️💬\s]+/, '').trim();
+    
+    // Get colors
+    const rLower = cleanText.toLowerCase();
+    const isPos = rLower.includes('positive') || rLower.includes('safe') || rLower.includes('strong') || rLower.includes('undervalued') || rLower.includes('bullish') || rLower.includes('growth');
+    const isNeg = rLower.includes('negative') || rLower.includes('risk') || rLower.includes('weak') || rLower.includes('overvalued') || rLower.includes('bearish') || rLower.includes('downtrend') || rLower.includes('distress');
+    const iconColor = isPos ? '#10B981' : isNeg ? '#EF4444' : '#F59E0B';
+    const Icon = isPos ? CheckCircle : isNeg ? XCircle : AlertTriangle;
+    
+    // Explanation logic
+    let explanation = "This indicator contributes to the overall AI prediction score.";
+    if (rLower.includes('piotroski')) explanation = "The Piotroski F-Score is a 0-9 scale reflecting a company's financial strength. Higher scores mean healthier financials (profitability, leverage, and operating efficiency).";
+    else if (rLower.includes('altman')) explanation = "The Altman Z-Score predicts the probability of bankruptcy. Z > 2.99 is 'Safe', 1.81-2.99 is 'Grey', and < 1.81 is 'Distress'.";
+    else if (rLower.includes('p/e')) explanation = "The Price-to-Earnings (P/E) ratio shows how much the market is willing to pay today for a stock based on its past or future earnings. Lower P/E can mean the stock is undervalued.";
+    else if (rLower.includes('debt/equity')) explanation = "Debt/Equity ratio compares a company's total liabilities to shareholder equity. High D/E means the company is heavily financing growth with debt.";
+    else if (rLower.includes('macd')) explanation = "Moving Average Convergence Divergence (MACD) shows the relationship between two moving averages. When MACD crosses above the signal line, it's a bullish (buy) indicator.";
+    else if (rLower.includes('rsi')) explanation = "Relative Strength Index (RSI) measures momentum. RSI > 70 is overbought (bearish), RSI < 30 is oversold (bullish).";
+    else if (rLower.includes('ema20') || rLower.includes('ema50') || rLower.includes('trend')) explanation = "The price's relation to Moving Averages (EMA 20, EMA 50) determines the trend. Price above EMA suggests an uptrend, below suggests a downtrend.";
+    else if (rLower.includes('sentiment') || rLower.includes('news')) explanation = "This reflects the average tone of recent news articles about the company. Positive news often precedes or confirms upward price momentum.";
+
+    return (
+        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + (i * 0.05) }} style={{ borderBottom: '1px solid #F1F5F9', overflow: 'hidden' }}>
+            <div onClick={() => setExpanded(!expanded)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 8px', cursor: 'pointer' }}>
+                <div style={{ color: iconColor, flexShrink: 0 }}>
+                    <Icon size={16} strokeWidth={2.5} />
+                </div>
+                <div style={{ fontSize: 13, color: '#334155', fontWeight: 500, flex: 1 }}>
+                    {cleanText}
+                </div>
+                <div style={{ padding: 4, flexShrink: 0, color: '#94A3B8', transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                    <ChevronDown size={16} />
+                </div>
+            </div>
+            <AnimatePresence>
+                {expanded && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} style={{ overflow: 'hidden' }}>
+                        <div style={{ padding: '0 8px 16px 36px', fontSize: 13, color: '#64748B', lineHeight: 1.5 }}>
+                            {explanation}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
+    );
+}
+
 /* ──────────────────────── main page ──────────────────────── */
 export default function StockAnalysis() {
+    const navigate = useNavigate();
+    const location = useLocation();
     const [query, setQuery] = useState('');
     const [suggestions, setSugg] = useState([]);
     const [showSugg, setShowSugg] = useState(false);
@@ -168,15 +305,29 @@ export default function StockAnalysis() {
     const [error, setError] = useState(null);
     const [market, setMarket] = useState(null);
     const [marketLoading, setMarketLoading] = useState(true);
+    
+    // Compare Mode State
+    const [compareMode, setCompareMode] = useState(false);
+    const [compareList, setCompareList] = useState([]);
+    const [timeRange, setTimeRange] = useState('1Y');
+    const [intradayData, setIntradayData] = useState(null);
+    const [chartLoading, setChartLoading] = useState(false);
+    const [sentimentLoading, setSentimentLoading] = useState(false);
+    
     const searchRef = useRef(null);
     const debounceRef = useRef(null);
 
     /* Fetch market overview on mount */
     useEffect(() => {
         const fetchMarket = async () => {
+            const cacheKey = 'mm_market_overview';
             try {
                 const res = await fetch(`${API_BASE}/stock/market-overview`);
-                if (res.ok) setMarket(await res.json());
+                if (res.ok) {
+                    const json = await res.json();
+                    setMarket(json);
+                    localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: json }));
+                }
             } catch { /* silently fail */ }
             finally { setMarketLoading(false); }
         };
@@ -208,11 +359,55 @@ export default function StockAnalysis() {
         setStock({ ticker, name });
         setQuery(name || ticker);
 
+        // Simple local cache for blazing fast loads (5 min TTL)
+        const cacheKey = `mm_stock_${ticker}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                if (Date.now() - parsed.timestamp < 300000) {
+                    setData(parsed.data);
+                    setLoading(false);
+                    return;
+                }
+            } catch (e) {}
+        }
+
         try {
+            // Fetch fundamentals & technicals (Fast ~1s)
             const res = await fetch(`${API_BASE}/stock/full/${encodeURIComponent(ticker)}`);
             if (!res.ok) throw new Error(`Server error: ${res.status}`);
             const json = await res.json();
             setData(json);
+            
+            // Save to cache
+            localStorage.setItem(cacheKey, JSON.stringify({
+                timestamp: Date.now(),
+                data: json
+            }));
+
+            // Lazy-load sentiment & prediction in background!
+            setSentimentLoading(true);
+            fetch(`${API_BASE}/stock/predict/${encodeURIComponent(ticker)}`)
+                .then(r => r.json())
+                .then(predJson => {
+                    setData(prev => {
+                        if (!prev || prev.ticker !== ticker) return prev;
+                        const updated = {
+                            ...prev,
+                            sentiment: predJson._sentiment_data || {},
+                            prediction: predJson
+                        };
+                        localStorage.setItem(cacheKey, JSON.stringify({
+                            timestamp: Date.now(),
+                            data: updated
+                        }));
+                        return updated;
+                    });
+                })
+                .catch(e => console.error("Lazy load failed:", e))
+                .finally(() => setSentimentLoading(false));
+
         } catch (err) {
             setError(err.message || 'Failed to fetch stock data');
         } finally {
@@ -220,6 +415,60 @@ export default function StockAnalysis() {
         }
     }, []);
 
+    /* Handle redirect from other pages (e.g., Stock Comparison) */
+    useEffect(() => {
+        if (location.state?.ticker) {
+            fetchStock(location.state.ticker, location.state.name);
+            // Clear state so it doesn't refetch on every render/tab change
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location.state, fetchStock, navigate, location.pathname]);
+
+    /* Intraday Fetcher */
+    useEffect(() => {
+        if (!selectedStock || !selectedStock.ticker) return;
+        if (timeRange !== '1D' && timeRange !== '1W') return;
+        
+        const fetchIntraday = async () => {
+            setChartLoading(true);
+            try {
+                const period = timeRange === '1D' ? '1d' : '5d'; // 5d for 1W
+                const res = await fetch(`${API_BASE}/stock/chart/${encodeURIComponent(selectedStock.ticker)}?period=${period}`);
+                if (res.ok) {
+                    const json = await res.json();
+                    setIntradayData(json.technicals);
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setChartLoading(false);
+            }
+        };
+        fetchIntraday();
+    }, [timeRange, selectedStock, API_BASE]);
+
+    /* Compare logic */
+    const addToCompare = () => {
+        if (!selectedStock || !data) return;
+        
+        const fullStockData = {
+            ticker: selectedStock.ticker,
+            name: selectedStock.name || data.company_name || selectedStock.ticker,
+            fundamentals: data.fundamentals || {},
+            candles: data.candles || [],
+            prediction: data.prediction || {}
+        };
+
+        navigate('/stocks/compare', { state: { from: '/stocks', ticker: fullStockData.ticker, name: fullStockData.company_name, stocks: [fullStockData] } });
+    };
+
+    const removeFromCompare = (sym) => {
+        setCompareList(prev => {
+            const next = prev.filter(p => p.symbol !== sym);
+            if (next.length === 0) setCompareMode(false);
+            return next;
+        });
+    };
     /* Close suggestions on outside click */
     useEffect(() => {
         const handler = (e) => {
@@ -239,8 +488,25 @@ export default function StockAnalysis() {
     return (
         <div className="stock-page" style={{ paddingTop: 10 }}>
 
+                        {/* ── Header Area ── */}
+            <div className="stock-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, position: 'relative', zIndex: 10, marginBottom: 16 }}>
+                <div className="stock-search-container" style={{ flex: 1, maxWidth: data ? 650 : 450, display: 'flex', alignItems: 'center', gap: 16 }}>
+                    {data && (
+                        <button onClick={() => { setData(null); setStock({ ticker: '', name: '' }); setQuery(''); }} 
+                            style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                                background: 'rgba(255, 255, 255, 0.95)', border: '2px solid transparent', color: '#0F172A',
+                                cursor: 'pointer', height: 60, width: 60,
+                                borderRadius: 20, transition: 'all 0.2s', boxShadow: '0 10px 40px rgba(0, 0, 0, 0.08)'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#6366F1'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; }}
+                        >
+                            <ArrowLeft size={24} />
+                        </button>
+                    )}
             {/* ── Search ── */}
-            <div className="stock-search-wrap" ref={searchRef}>
+            <div className="stock-search-wrap" ref={searchRef} style={{ flex: 1 }}>
                 <div className="stock-search-box">
                     <Search size={16} className="stock-search-icon" />
                     <input
@@ -282,6 +548,75 @@ export default function StockAnalysis() {
                 </AnimatePresence>
             </div>
 
+                </div>
+
+                {!data && !loading && !error && (
+                    <div className="stock-header-widgets" style={{ display: 'flex', alignItems: 'stretch', gap: 16 }}>
+                        {market?.commodities && (
+                            <div className="stock-header-commodities" style={{ display: 'flex', gap: 16, background: '#F8FAFC', padding: '12px 20px', borderRadius: 16, border: '1px solid #E2E8F0' }}>
+                                {Object.entries(market.commodities).map(([name, idx]) => {
+                                    const up = idx.change_pct >= 0;
+                                    let displayName = name;
+                                    let displayPrice = idx.price;
+                                    let prefix = '';
+                                    
+                                    const inrRate = market.commodities['USD / INR']?.price || 83.5;
+
+                                    if (name === 'Gold (10g)') {
+                                        displayName = 'Gold (24K - 10g)';
+                                        displayPrice = idx.price;
+                                        prefix = '₹';
+                                    } else if (name === 'Silver (1kg)') {
+                                        displayName = 'Silver (1kg)';
+                                        displayPrice = idx.price;
+                                        prefix = '₹';
+                                    } else if (name === 'USD / INR') {
+                                        prefix = '₹';
+                                    }
+
+                                    return (
+                                        <div key={name} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                            <div style={{ fontSize: 10, color: '#64748B', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{displayName}</div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                                                <span style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>
+                                                    {prefix}{displayPrice?.toLocaleString('en-IN', { maximumFractionDigits: name.includes('Silver') ? 0 : 1 })}
+                                                </span>
+                                                <span style={{ fontSize: 12, fontWeight: 600, color: up ? '#10B981' : '#EF4444' }}>
+                                                    {up ? '▲' : '▼'}{Math.abs(idx.change_pct).toFixed(2)}%
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        <div className="stock-header-buttons" style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
+                            <button onClick={() => navigate('/stocks/watchlist')}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    background: '#ffffff', border: '1px solid #E2E8F0', padding: '0 20px', borderRadius: 16,
+                                    color: '#0F172A', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                                    transition: 'all 0.2s', boxShadow: '0 2px 10px rgba(15,23,42,0.03)'
+                                }}
+                            >
+                                <Bookmark size={18} color="#4F46E5" /> Watchlist
+                            </button>
+                            <button onClick={() => navigate('/stocks/compare', { state: { from: '/stocks' } })}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    background: '#ffffff', border: '1px solid #E2E8F0', padding: '0 20px', borderRadius: 16,
+                                    color: '#0F172A', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                                    transition: 'all 0.2s', boxShadow: '0 2px 10px rgba(15,23,42,0.03)'
+                                }}
+                            >
+                                <BarChart2 size={18} color="#4F46E5" /> Compare
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
             {/* ── Popular chips ── */}
             {!data && !loading && (
                 <div className="stock-popular-wrap">
@@ -291,7 +626,7 @@ export default function StockAnalysis() {
                         { sym: 'TCS.NS', name: 'TCS' },
                         { sym: 'INFY.NS', name: 'Infosys' },
                         { sym: 'HDFCBANK.NS', name: 'HDFC Bank' },
-                        { sym: 'ZOMATO.NS', name: 'Zomato' },
+                        { sym: 'ETERNAL.NS', name: 'Eternal' },
                         { sym: 'SBIN.NS', name: 'SBI' },
                     ].map((p) => (
                         <button
@@ -326,16 +661,59 @@ export default function StockAnalysis() {
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
 
                     {/* Stock hero row */}
-                    <div className="stock-hero">
-                        <div className="stock-hero-left">
-                            <div className="stock-hero-name">{data.company_name || data.ticker}</div>
-                            <div className="stock-hero-ticker">{data.ticker}</div>
-                        </div>
-                        <div className="stock-hero-right">
-                            <div className="stock-hero-price">
-                                ₹{data.fundamentals?.current_price?.toFixed(2) ?? 'N/A'}
+                    <div className="stock-hero" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                        <div className="stock-hero-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+                            <div className="stock-hero-left">
+                                <div className="stock-hero-name">{data.company_name || data.ticker}</div>
+                                <div className="stock-hero-ticker">{data.ticker}</div>
                             </div>
-                            <SignalBadge signal={data.prediction?.signal} size="lg" />
+                            <div className="stock-hero-right">
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', justifyContent: 'flex-end' }}>
+                                    <WatchlistBtn symbol={data.ticker} name={data.company_name} showText={true} />
+                                    <button
+                                        onClick={addToCompare}
+                                        style={{
+                                            background: '#F8FAFC',
+                                            border: '1px solid #E2E8F0',
+                                            color: '#64748B', padding: '6px 12px',
+                                            borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+                                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#0F172A'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.color = '#64748B'; }}
+                                    >
+                                        <BarChart2 size={14} /> Compare
+                                    </button>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'flex-end' }}>
+                                    <div className="stock-hero-price">
+                                        ₹{data.fundamentals?.current_price?.toFixed(2) ?? 'N/A'}
+                                    </div>
+                                    <SignalBadge signal={data.prediction?.signal} size="lg" />
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* ── Timeframe & Header Chart ── */}
+                        <div style={{ marginTop: 24, padding: '16px', background: '#F8FAFC', borderRadius: '16px', border: '1px solid #E2E8F0' }}>
+                            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                                {['1D', '1W', '1M', '6M', '1Y', '5Y'].map(rng => (
+                                    <button key={rng} onClick={() => setTimeRange(rng)}
+                                        style={{
+                                            background: timeRange === rng ? '#4F46E5' : 'transparent',
+                                            color: timeRange === rng ? '#fff' : '#64748B',
+                                            border: 'none', padding: '6px 12px', borderRadius: '6px',
+                                            fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => { if (timeRange !== rng) e.currentTarget.style.background = '#E2E8F0'; }}
+                                        onMouseLeave={(e) => { if (timeRange !== rng) e.currentTarget.style.background = 'transparent'; }}
+                                    >
+                                        {rng}
+                                    </button>
+                                ))}
+                            </div>
+                            <PriceChart candles={data.technicals?.candles} indicators={data.technicals?.indicators} timeRange={timeRange} intradayData={intradayData} />
                         </div>
                     </div>
 
@@ -439,20 +817,20 @@ export default function StockAnalysis() {
                             <motion.div key="tech" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
                                 <div className="stock-section-title">Price Chart (90 days)</div>
                                 <div className="stock-chart-card">
-                                    <PriceChart candles={data.technical?.candles} indicators={data.technical?.indicators} />
+                                    <PriceChart candles={data.technicals?.candles} indicators={data.technicals?.indicators} />
                                 </div>
 
                                 <div className="stock-chart-row">
                                     <div className="stock-chart-half">
                                         <div className="stock-section-title" style={{ fontSize: 13 }}>RSI (14)</div>
                                         <div className="stock-chart-card" style={{ padding: '10px 8px 4px' }}>
-                                            <RSIChart candles={data.technical?.candles} indicators={data.technical?.indicators} />
+                                            <RSIChart candles={data.technicals?.candles} indicators={data.technicals?.indicators} timeRange={timeRange} intradayData={intradayData} />
                                         </div>
                                     </div>
                                     <div className="stock-chart-half">
                                         <div className="stock-section-title" style={{ fontSize: 13 }}>MACD (12,26,9)</div>
                                         <div className="stock-chart-card" style={{ padding: '10px 8px 4px' }}>
-                                            <MACDChart candles={data.technical?.candles} indicators={data.technical?.indicators} />
+                                            <MACDChart candles={data.technicals?.candles} indicators={data.technicals?.indicators} timeRange={timeRange} intradayData={intradayData} />
                                         </div>
                                     </div>
                                 </div>
@@ -461,14 +839,14 @@ export default function StockAnalysis() {
                                 <div className="stock-section-title" style={{ marginTop: 20 }}>Current Values</div>
                                 <div className="stock-ind-table">
                                     {[
-                                        ['EMA 20', data.technical?.latest?.EMA_20, '₹'],
-                                        ['EMA 50', data.technical?.latest?.EMA_50, '₹'],
-                                        ['SMA 200', data.technical?.latest?.SMA_200, '₹'],
-                                        ['RSI 14', data.technical?.latest?.RSI_14, ''],
-                                        ['MACD', data.technical?.latest?.MACD, ''],
-                                        ['ATR 14', data.technical?.latest?.ATR_14, '₹'],
-                                        ['BB Upper', data.technical?.latest?.BB_upper, '₹'],
-                                        ['BB Lower', data.technical?.latest?.BB_lower, '₹'],
+                                        ['EMA 20', data.technicals?.latest?.EMA_20, '₹'],
+                                        ['EMA 50', data.technicals?.latest?.EMA_50, '₹'],
+                                        ['SMA 200', data.technicals?.latest?.SMA_200, '₹'],
+                                        ['RSI 14', data.technicals?.latest?.RSI_14, ''],
+                                        ['MACD', data.technicals?.latest?.MACD, ''],
+                                        ['ATR 14', data.technicals?.latest?.ATR_14, '₹'],
+                                        ['BB Upper', data.technicals?.latest?.BB_upper, '₹'],
+                                        ['BB Lower', data.technicals?.latest?.BB_lower, '₹'],
                                     ].map(([label, val, prefix]) => (
                                         <div key={label} className="stock-ind-row">
                                             <span className="stock-ind-label">{label}</span>
@@ -478,11 +856,11 @@ export default function StockAnalysis() {
                                 </div>
 
                                 {/* Signals */}
-                                {data.technical?.signals?.length > 0 && (
+                                {data.technicals?.signals?.length > 0 && (
                                     <>
                                         <div className="stock-section-title" style={{ marginTop: 20 }}>Signal Summary</div>
                                         <div className="stock-signal-list">
-                                            {data.technical.signals.map((s, i) => (
+                                            {data.technicals.signals.map((s, i) => (
                                                 <div key={i} className="stock-signal-item" style={{ borderLeft: `3px solid ${signalColor(s.signal)}` }}>
                                                     <SignalBadge signal={s.signal} />
                                                     <span className="stock-signal-ind">{s.indicator}</span>
@@ -498,27 +876,33 @@ export default function StockAnalysis() {
                         {/* ── Tab: Sentiment ── */}
                         {activeTab === 'sentiment' && (
                             <motion.div key="sent" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-                                {/* Overall meter */}
-                                <div className="stock-sent-overview">
-                                    <div className="stock-sent-score-wrap">
-                                        <div className="stock-sent-score-label">Overall Sentiment</div>
-                                        <div className="stock-sent-score-val"
-                                            style={{ color: signalColor(data.sentiment?.overall_label) }}>
-                                            {data.sentiment?.overall_label?.toUpperCase() ?? 'N/A'}
-                                        </div>
-                                        <div className="stock-sent-score-num">
-                                            {data.sentiment?.overall_score != null
-                                                ? `Score: ${data.sentiment.overall_score > 0 ? '+' : ''}${data.sentiment.overall_score.toFixed(2)}`
-                                                : ''}
-                                        </div>
+                                {sentimentLoading && !data.sentiment?.articles ? (
+                                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                                        <RefreshCw size={24} className="stock-search-spin" style={{ marginBottom: 12 }} />
+                                        <div>AI is analyzing the latest news...</div>
                                     </div>
-                                    <div className="stock-sent-meta">
-                                        <div>{data.sentiment?.articles_found ?? 0} articles analysed</div>
-                                        <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
-                                            Sources: ET, Moneycontrol, LiveMint, Business Standard
+                                ) : (
+                                    <>
+                                        {/* Overall meter */}
+                                        <div className="stock-sent-overview">
+                                            <div className="stock-sent-score-wrap">
+                                                <div className="stock-sent-score-label">Overall Sentiment</div>
+                                                <div className="stock-sent-score-val" style={{ color: signalColor(data.sentiment?.overall_label) }}>
+                                                    {data.sentiment?.overall_label?.toUpperCase() ?? 'N/A'}
+                                                </div>
+                                                <div className="stock-sent-score-num">
+                                                    {data.sentiment?.overall_score != null
+                                                        ? `Score: ${data.sentiment.overall_score > 0 ? '+' : ''}${data.sentiment.overall_score.toFixed(2)}`
+                                                        : ''}
+                                                </div>
+                                            </div>
+                                            <div className="stock-sent-meta">
+                                                <div>{data.sentiment?.articles_found ?? 0} articles analysed</div>
+                                                <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
+                                                    Sources: ET, Moneycontrol, LiveMint, Business Standard
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
 
                                 {/* News cards */}
                                 {data.sentiment?.articles?.length > 0 ? (
@@ -548,58 +932,84 @@ export default function StockAnalysis() {
                                         <p>No recent news found for this stock.</p>
                                     </div>
                                 )}
-                            </motion.div>
+                            </>
                         )}
+                    </motion.div>
+                )}
 
                         {/* ── Tab: Prediction ── */}
-                        {activeTab === 'prediction' && data.prediction && (
+                        {activeTab === 'prediction' && (
                             <motion.div key="pred" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-                                {/* Main signal card */}
-                                <div className="stock-pred-hero" style={{ borderColor: signalColor(data.prediction.signal) + '40', background: signalBg(data.prediction.signal) }}>
-                                    <div className="stock-pred-signal-wrap">
-                                        <SignalBadge signal={data.prediction.signal} size="lg" />
-                                        <div className="stock-pred-conf">
-                                            {data.prediction.confidence}% confidence
-                                        </div>
+                                {sentimentLoading && !data.prediction?.signal ? (
+                                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                                        <RefreshCw size={24} className="stock-search-spin" style={{ marginBottom: 12 }} />
+                                        <div>AI is crunching fundamental & sentiment data...</div>
                                     </div>
-                                    <div className="stock-pred-score">
-                                        Final Score: <strong>{data.prediction.final_score}</strong> / 100
-                                    </div>
-                                </div>
-
-                                {/* Score breakdown */}
-                                <div className="stock-section-title">Score Breakdown</div>
-                                <div className="stock-breakdown-list">
-                                    {Object.entries(data.prediction.score_breakdown || {}).map(([key, val]) => (
-                                        <div key={key} className="stock-breakdown-row">
-                                            <span className="stock-breakdown-key">{key}</span>
-                                            <div className="stock-breakdown-bar-wrap">
-                                                <div
-                                                    className="stock-breakdown-bar"
-                                                    style={{
-                                                        width: `${val}%`,
-                                                        background: val >= 65 ? '#10B981' : val <= 38 ? '#EF4444' : '#F59E0B',
-                                                    }}
-                                                />
+                                ) : data.prediction && (
+                                    <>
+                                        {/* ── Main signal hero ── */}
+                                        <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+                                            <div>
+                                                <div style={{ fontSize: 12, fontWeight: 700, color: '#64748B', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 12 }}>AI Prediction Signal</div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                    <SignalBadge signal={data.prediction.signal} size="lg" />
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#475569' }}>
+                                                        <Target size={14} color="#64748B" />
+                                                        {data.prediction.confidence}% Confidence
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <span className="stock-breakdown-val">{val}</span>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <div style={{ fontSize: 12, fontWeight: 700, color: '#64748B', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 8 }}>Final Score</div>
+                                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, justifyContent: 'flex-end' }}>
+                                                    <span style={{ fontSize: 36, fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{data.prediction.final_score}</span>
+                                                    <span style={{ fontSize: 16, fontWeight: 600, color: '#94A3B8' }}>/100</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                    ))}
-                                </div>
 
-                                {/* Reasons */}
-                                <div className="stock-section-title" style={{ marginTop: 20 }}>Signal Reasons</div>
-                                <div className="stock-reasons-list">
-                                    {(data.prediction.reasons || []).map((r, i) => (
-                                        <div key={i} className="stock-reason-item">{r}</div>
-                                    ))}
-                                </div>
+                                        {/* ── Score Breakdown ── */}
+                                        <div style={{ marginBottom: 32 }}>
+                                            <div style={{ fontSize: 14, fontWeight: 700, color: '#0F172A', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <BarChart2 size={16} color="#64748B" /> Score Breakdown
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                                {Object.entries(data.prediction.score_breakdown || {}).map(([key, val], idx) => {
+                                                    const color = val >= 65 ? '#10B981' : val <= 38 ? '#EF4444' : '#F59E0B';
+                                                    return (
+                                                        <div key={key}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 6 }}>
+                                                                <span style={{ textTransform: 'capitalize' }}>{key}</span>
+                                                                <span style={{ color }}>{val}</span>
+                                                            </div>
+                                                            <div style={{ height: 6, background: '#F1F5F9', borderRadius: 3, overflow: 'hidden' }}>
+                                                                <motion.div initial={{ width: 0 }} animate={{ width: `${val}%` }} transition={{ duration: 0.8, delay: idx * 0.1 }} style={{ height: '100%', background: color, borderRadius: 3 }} />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
 
-                                {/* Disclaimer */}
-                                <div className="stock-disclaimer">
-                                    <AlertTriangle size={14} style={{ flexShrink: 0 }} />
-                                    {data.prediction.disclaimer}
-                                </div>
+                                        {/* ── Signal Reasons ── */}
+                                        <div style={{ marginBottom: 32 }}>
+                                            <div style={{ fontSize: 14, fontWeight: 700, color: '#0F172A', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <Info size={16} color="#64748B" /> Key Drivers
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                {(data.prediction.reasons || []).map((r, i) => (
+                                                    <ReasonCard key={i} reasonStr={r} i={i} />
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* ── Disclaimer ── */}
+                                        <div style={{ marginTop: 32, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '12px', padding: '16px 20px', display: 'flex', gap: 12, alignItems: 'center', color: '#991B1B', fontSize: 13, fontWeight: 500 }}>
+                                            <AlertTriangle size={18} style={{ flexShrink: 0, color: '#EF4444' }} />
+                                            {data.prediction.disclaimer || "This is not financial advice. Use this purely for educational reference."}
+                                        </div>
+                                    </>
+                                )}
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -610,34 +1020,44 @@ export default function StockAnalysis() {
             {!data && !loading && !error && (
                 <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
 
+
                     {/* Indices Row */}
                     <div style={{ marginBottom: 24 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Market Indices</div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12 }}>
                             {marketLoading
                                 ? [1, 2, 3, 4].map(i => <div key={i} className="stock-skeleton-card" style={{ height: 70, borderRadius: 12 }} />)
-                                : market?.indices && Object.entries(market.indices).map(([name, idx]) => (
-                                    <div key={name} style={{
-                                        background: '#fff', borderRadius: 12, padding: '12px 16px',
-                                        border: '1px solid #F1F5F9', boxShadow: '0 1px 6px rgba(15,23,42,0.05)',
-                                    }}>
-                                        <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>{name}</div>
-                                        <div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', marginTop: 2 }}>
-                                            {idx.price?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                : market?.indices && Object.entries(market.indices).map(([name, idx]) => {
+                                    const sparkline = idx.sparkline_7d || idx.sparkline || [];
+                                    const up = idx.change_pct >= 0;
+                                    return (
+                                        <div key={name} style={{
+                                            background: '#ffffff', borderRadius: 16, padding: '14px 16px',
+                                            border: '1px solid #E2E8F0', boxShadow: '0 4px 20px rgba(15,23,42,0.04)',
+                                        }}>
+                                            <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>{name}</div>
+                                            <div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', marginTop: 2 }}>
+                                                {idx.price?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+                                                <div style={{ fontSize: 12, fontWeight: 600, color: up ? '#10B981' : '#EF4444' }}>
+                                                    {up ? '▲' : '▼'} {Math.abs(idx.change_pct).toFixed(2)}%
+                                                </div>
+                                                {sparkline.length > 0 && (
+                                                    <MiniSparkline data={sparkline} color={up ? '#10B981' : '#EF4444'} width={40} height={20} />
+                                                )}
+                                            </div>
                                         </div>
-                                        <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2, color: idx.change_pct >= 0 ? '#10B981' : '#EF4444' }}>
-                                            {idx.change_pct >= 0 ? '▲' : '▼'} {Math.abs(idx.change_pct).toFixed(2)}%
-                                        </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             }
                         </div>
                     </div>
 
                     {/* Gainers & Losers */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                    <div className="stock-movers-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
                         {/* Top Gainers */}
-                        <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #F1F5F9', padding: 16, boxShadow: '0 1px 8px rgba(15,23,42,0.04)' }}>
+                        <div style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #E2E8F0', padding: 20, boxShadow: '0 4px 20px rgba(15,23,42,0.04)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
                                 <TrendingUp size={14} style={{ color: '#10B981' }} />
                                 <span style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>Top Gainers</span>
@@ -646,14 +1066,17 @@ export default function StockAnalysis() {
                                 ? [1, 2, 3].map(i => <div key={i} className="stock-skeleton-card" style={{ height: 36, borderRadius: 8, marginBottom: 6 }} />)
                                 : (market?.top_gainers || []).map((s) => (
                                     <div key={s.symbol} onClick={() => fetchStock(s.symbol, s.name)}
-                                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #F8FAFC', cursor: 'pointer' }}
+                                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid #F1F5F9', gap: 8, borderRadius: 8, transition: 'background 0.2s', cursor: 'pointer' }}
                                         className="stock-mover-row"
                                     >
-                                        <div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>{s.name}</div>
                                             <div style={{ fontSize: 11, color: '#94A3B8' }}>₹{s.price?.toLocaleString('en-IN')}</div>
                                         </div>
-                                        <span style={{ fontSize: 13, fontWeight: 700, color: '#10B981', background: '#ECFDF5', padding: '2px 8px', borderRadius: 6 }}>
+                                        {s.sparkline_7d && s.sparkline_7d.length > 0 && (
+                                            <MiniSparkline data={s.sparkline_7d} color="#10B981" />
+                                        )}
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: '#10B981', background: '#ECFDF5', padding: '4px 10px', borderRadius: 6, flexShrink: 0 }}>
                                             +{s.change_pct?.toFixed(2)}%
                                         </span>
                                     </div>
@@ -662,7 +1085,7 @@ export default function StockAnalysis() {
                         </div>
 
                         {/* Top Losers */}
-                        <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #F1F5F9', padding: 16, boxShadow: '0 1px 8px rgba(15,23,42,0.04)' }}>
+                        <div style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #E2E8F0', padding: 20, boxShadow: '0 4px 20px rgba(15,23,42,0.04)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
                                 <TrendingDown size={14} style={{ color: '#EF4444' }} />
                                 <span style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>Top Losers</span>
@@ -671,14 +1094,17 @@ export default function StockAnalysis() {
                                 ? [1, 2, 3].map(i => <div key={i} className="stock-skeleton-card" style={{ height: 36, borderRadius: 8, marginBottom: 6 }} />)
                                 : (market?.top_losers || []).map((s) => (
                                     <div key={s.symbol} onClick={() => fetchStock(s.symbol, s.name)}
-                                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #F8FAFC', cursor: 'pointer' }}
+                                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid #F1F5F9', gap: 8, borderRadius: 8, transition: 'background 0.2s', cursor: 'pointer' }}
                                         className="stock-mover-row"
                                     >
-                                        <div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>{s.name}</div>
                                             <div style={{ fontSize: 11, color: '#94A3B8' }}>₹{s.price?.toLocaleString('en-IN')}</div>
                                         </div>
-                                        <span style={{ fontSize: 13, fontWeight: 700, color: '#EF4444', background: '#FEF2F2', padding: '2px 8px', borderRadius: 6 }}>
+                                        {s.sparkline_7d && s.sparkline_7d.length > 0 && (
+                                            <MiniSparkline data={s.sparkline_7d} color="#EF4444" />
+                                        )}
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: '#EF4444', background: '#FEF2F2', padding: '4px 10px', borderRadius: 6, flexShrink: 0 }}>
                                             {s.change_pct?.toFixed(2)}%
                                         </span>
                                     </div>
@@ -688,24 +1114,37 @@ export default function StockAnalysis() {
                     </div>
 
                     {/* Trending Stocks */}
-                    <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #F1F5F9', padding: 16, boxShadow: '0 1px 8px rgba(15,23,42,0.04)' }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>🔥 Trending Stocks</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    <div style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #E2E8F0', padding: 20, boxShadow: '0 4px 20px rgba(15,23,42,0.04)' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 7 }}>
+                            <TrendingUp size={14} /> Trending Stocks
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                             {marketLoading
-                                ? [1, 2, 3, 4, 5].map(i => <div key={i} className="stock-skeleton-card" style={{ width: 120, height: 56, borderRadius: 10 }} />)
+                                ? [1, 2, 3, 4, 5].map(i => <div key={i} className="stock-skeleton-card" style={{ width: 140, height: 64, borderRadius: 12 }} />)
                                 : (market?.trending || []).map((s) => (
-                                    <div key={s.symbol} onClick={() => fetchStock(s.symbol, s.name)}
+                                    <div key={s.symbol}
                                         style={{
-                                            background: '#F8FAFC', borderRadius: 10, padding: '8px 14px',
-                                            cursor: 'pointer', border: '1px solid #E2E8F0', minWidth: 110,
-                                            transition: 'all 0.15s',
+                                            background: '#F8FAFC', borderRadius: 12, padding: '12px 14px',
+                                            border: '1px solid #E2E8F0', minWidth: 140,
+                                            transition: 'all 0.2s', position: 'relative',
                                         }}
                                         className="stock-trending-chip"
+                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
                                     >
-                                        <div style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>{s.name}</div>
-                                        <div style={{ fontSize: 11, color: s.change_pct >= 0 ? '#10B981' : '#EF4444', fontWeight: 600, marginTop: 2 }}>
-                                            {s.price ? `₹${s.price?.toLocaleString('en-IN')}` : '—'}
-                                            {s.change_pct != null && ` · ${s.change_pct >= 0 ? '+' : ''}${s.change_pct.toFixed(2)}%`}
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                            <span onClick={() => fetchStock(s.symbol, s.name)}
+                                                style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', cursor: 'pointer' }}>{s.name}</span>
+                                            <WatchlistBtn symbol={s.symbol} name={s.name} />
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <span style={{ fontSize: 12, color: s.change_pct >= 0 ? '#10B981' : '#EF4444', fontWeight: 600 }}>
+                                                {s.price && s.price > 0 ? `₹${s.price.toLocaleString('en-IN')}` : '—'}
+                                                {s.change_pct != null && ` · ${s.change_pct >= 0 ? '+' : ''}${s.change_pct.toFixed(2)}%`}
+                                            </span>
+                                            {s.sparkline_7d && s.sparkline_7d.length > 0 && (
+                                                <MiniSparkline data={s.sparkline_7d} color={s.change_pct >= 0 ? '#10B981' : '#EF4444'} width={30} height={16} />
+                                            )}
                                         </div>
                                     </div>
                                 ))
@@ -714,6 +1153,15 @@ export default function StockAnalysis() {
                     </div>
 
                 </motion.div>
+            )}
+            
+            {/* Compare panel (Global) */}
+            {compareMode && compareList.length > 0 && (
+                <ComparePanel
+                    items={compareList}
+                    onRemove={removeFromCompare}
+                    onClear={() => { setCompareList([]); setCompareMode(false); }}
+                />
             )}
         </div>
     );

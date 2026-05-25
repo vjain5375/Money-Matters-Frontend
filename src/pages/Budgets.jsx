@@ -170,6 +170,7 @@ export default function Budgets() {
         setModalOpen(false);
         message.success(editing ? 'Budget updated!' : 'Budget created!');
         fetchAll();
+        window.dispatchEvent(new Event('refresh-notifications'));
     };
 
     /* ── Delete ── */
@@ -178,6 +179,7 @@ export default function Budgets() {
         if (error) { message.error('Delete failed'); return; }
         message.success('Budget removed');
         fetchAll();
+        window.dispatchEvent(new Event('refresh-notifications'));
     };
 
     /* ── Summary ── */
@@ -198,7 +200,7 @@ export default function Budgets() {
     }
 
     return (
-        <div style={{ maxWidth: 1080, margin: '0 auto', width: '100%', paddingTop: 10 }}>
+        <div style={{ width: '100%', paddingTop: 10 }}>
             {/* Action Bar */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
                 <Button

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Row, Col, Tag, Tabs, message, Empty } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
     AreaChart, Area, BarChart, Bar,
     XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -197,6 +199,7 @@ const MetricCard = ({ label, value, sub, iconBg, iconColor, icon: Icon, changeTy
 
 /* ─── Overview Tab ─── */
 const OverviewTab = ({ txns, loading, onRefresh, onOpenProfile }) => {
+    const navigate = useNavigate();
     const now = new Date();
     const [advice, setAdvice] = useState([]);
     const [adviceLoading, setAdviceLoading] = useState(false);
@@ -376,10 +379,10 @@ const OverviewTab = ({ txns, loading, onRefresh, onOpenProfile }) => {
             {/* Main Grid */}
             <Row gutter={[18, 18]}>
                 {/* Spending Trends */}
-                <Col xs={24} lg={16}>
+                <Col xs={24} lg={16} style={{ display: 'flex', flexDirection: 'column' }}>
                     <motion.div
                         className="mm-card"
-                        style={{ paddingBottom: 16 }}
+                        style={{ paddingBottom: 16, height: '100%', display: 'flex', flexDirection: 'column' }}
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.18, duration: 0.3 }}
@@ -391,7 +394,19 @@ const OverviewTab = ({ txns, loading, onRefresh, onOpenProfile }) => {
                             </div>
                         </div>
                         {trends.every(t => t.spend === 0 && t.income === 0) ? (
-                            <Empty description="Add transactions to see trends" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '40px 0' }} />
+                            <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+                                <Empty description={<span style={{ color: '#64748B', fontSize: 15 }}>Add transactions to see trends</span>} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                                <button
+                                    onClick={() => navigate('/transactions')}
+                                    style={{
+                                        marginTop: 16, background: '#4F46E5', color: '#fff', border: 'none', borderRadius: '8px',
+                                        padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                                        boxShadow: '0 4px 12px rgba(79,70,229,0.2)'
+                                    }}
+                                >
+                                    + Add Transaction
+                                </button>
+                            </div>
                         ) : (
                             <div className="mm-chart-wrap">
                                 <ResponsiveContainer width="100%" height={240}>
@@ -427,7 +442,7 @@ const OverviewTab = ({ txns, loading, onRefresh, onOpenProfile }) => {
                 </Col>
 
                 {/* AI Financial Advisor */}
-                <Col xs={24} lg={8}>
+                <Col xs={24} lg={8} style={{ display: 'flex', flexDirection: 'column' }}>
                     <motion.div
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -504,7 +519,12 @@ const OverviewTab = ({ txns, loading, onRefresh, onOpenProfile }) => {
                                 {/* Empty state */}
                                 {!adviceLoading && !adviceError && advice.length === 0 && (
                                     txns.length === 0
-                                        ? <Empty description="Add transactions first" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '20px 0' }} />
+                                        ? (
+                                            <div style={{ padding: '20px 0', textAlign: 'center' }}>
+                                                <Empty description="Add transactions first" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                                                <button onClick={() => navigate('/transactions')} style={{ marginTop: 12, background: '#F8FAFC', color: '#0F172A', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>+ Add Now</button>
+                                            </div>
+                                        )
                                         : (
                                             <div className="mm-ai-empty">
                                                 <div className="mm-ai-star">✦</div>
@@ -639,7 +659,19 @@ const OverviewTab = ({ txns, loading, onRefresh, onOpenProfile }) => {
                             </button>
                         </div>
                         {recentTxns.length === 0 ? (
-                            <Empty description="No transactions yet — add one!" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '40px 0' }} />
+                            <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+                                <Empty description={<span style={{ color: '#64748B', fontSize: 15 }}>No transactions yet — add one!</span>} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                                <button
+                                    onClick={() => navigate('/transactions')}
+                                    style={{
+                                        marginTop: 16, background: '#4F46E5', color: '#fff', border: 'none', borderRadius: '8px',
+                                        padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                                        boxShadow: '0 4px 12px rgba(79,70,229,0.2)'
+                                    }}
+                                >
+                                    + Add Transaction
+                                </button>
+                            </div>
                         ) : (
                             loading
                                 ? [1, 2, 3, 4].map(i => <SkeletonRow key={i} />)
@@ -671,54 +703,72 @@ const OverviewTab = ({ txns, loading, onRefresh, onOpenProfile }) => {
 };
 
 /* ─────────────────── Budget Tab ─────────────────── */
-const BudgetTab = ({ txns }) => {
+const BudgetTab = ({ txns, budgets }) => {
     const now = new Date();
     const thisMonth = txns.filter(t => {
         const d = new Date(t.date);
         return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && t.type === 'debit';
     });
 
-    const LIMITS = { food: 6000, transport: 3000, shopping: 5000, utilities: 3500, entertainment: 2000, subscriptions: 2000, health: 3000, other: 2000 };
     const spent = {};
     thisMonth.forEach(t => { spent[t.category] = (spent[t.category] || 0) + Number(t.amount); });
 
-    const budgets = Object.entries(LIMITS).map(([cat, limit]) => ({
-        label: catLabel(cat), spent: spent[cat] || 0, limit, color: catColor(cat),
-        pct: Math.min(100, ((spent[cat] || 0) / limit) * 100),
-    })).filter(b => b.spent > 0 || b.label);
+    const activeBudgets = budgets
+        .filter(b => b.month === now.getMonth() + 1 && b.year === now.getFullYear())
+        .map(b => ({
+            label: catLabel(b.category),
+            spent: spent[b.category] || 0,
+            limit: b.limit,
+            color: catColor(b.category),
+            pct: Math.min(100, ((spent[b.category] || 0) / b.limit) * 100),
+        }));
 
     return (
         <Row gutter={[18, 18]}>
             <Col xs={24} lg={12}>
                 <div className="mm-card" style={{ padding: '20px 24px 22px' }}>
-                    <div className="mm-card-title" style={{ marginBottom: 4 }}>Monthly Budgets</div>
-                    <div className="mm-card-subtitle" style={{ marginBottom: 18 }}>
-                        {now.toLocaleString('en-IN', { month: 'long', year: 'numeric' })} — default limits
-                    </div>
-                    {budgets.map((b) => (
-                        <div className="mm-budget-item" key={b.label}>
-                            <div className="mm-budget-row">
-                                <div className="mm-budget-label">
-                                    <span className="mm-budget-dot" style={{ background: b.color }} />
-                                    {b.label}
-                                </div>
-                                <div className="mm-budget-amounts">
-                                    <strong>₹{b.spent.toLocaleString('en-IN')}</strong> / ₹{b.limit.toLocaleString('en-IN')}
-                                </div>
-                            </div>
-                            <div style={{ height: 5, background: '#F3F4F6', borderRadius: 99, overflow: 'hidden' }}>
-                                <motion.div
-                                    style={{ height: '100%', background: b.pct > 90 ? '#EF4444' : b.color, borderRadius: 99 }}
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${b.pct}%` }}
-                                    transition={{ duration: 0.6, ease: 'easeOut' }}
-                                />
-                            </div>
-                            <div style={{ fontSize: 11, color: b.pct > 90 ? '#EF4444' : '#9CA3AF', marginTop: 4, fontWeight: 500 }}>
-                                {b.pct.toFixed(0)}% used {b.pct > 90 && '· ⚠️ Near limit'}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+                        <div>
+                            <div className="mm-card-title" style={{ marginBottom: 4 }}>Monthly Budgets</div>
+                            <div className="mm-card-subtitle">
+                                {now.toLocaleString('en-IN', { month: 'long', year: 'numeric' })}
                             </div>
                         </div>
-                    ))}
+                        <button
+                            onClick={() => window.location.href = '/budgets'}
+                            style={{ background: '#6c63ff', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
+                        >
+                            Manage Budgets
+                        </button>
+                    </div>
+                    {activeBudgets.length === 0 ? (
+                        <Empty description="No budgets set for this month" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '40px 0' }} />
+                    ) : (
+                        activeBudgets.map((b) => (
+                            <div className="mm-budget-item" key={b.label}>
+                                <div className="mm-budget-row">
+                                    <div className="mm-budget-label">
+                                        <span className="mm-budget-dot" style={{ background: b.color }} />
+                                        {b.label}
+                                    </div>
+                                    <div className="mm-budget-amounts">
+                                        <strong>₹{b.spent.toLocaleString('en-IN')}</strong> / ₹{b.limit.toLocaleString('en-IN')}
+                                    </div>
+                                </div>
+                                <div style={{ height: 5, background: '#F3F4F6', borderRadius: 99, overflow: 'hidden' }}>
+                                    <motion.div
+                                        style={{ height: '100%', background: b.pct > 90 ? '#EF4444' : b.color, borderRadius: 99 }}
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${b.pct}%` }}
+                                        transition={{ duration: 0.6, ease: 'easeOut' }}
+                                    />
+                                </div>
+                                <div style={{ fontSize: 11, color: b.pct > 90 ? '#EF4444' : '#9CA3AF', marginTop: 4, fontWeight: 500 }}>
+                                    {b.pct.toFixed(0)}% used {b.pct > 90 && '· ⚠️ Near limit'}
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </Col>
             <Col xs={24} lg={12}>
@@ -731,12 +781,12 @@ const BudgetTab = ({ txns }) => {
                     </div>
                     <div className="mm-chart-wrap">
                         <ResponsiveContainer width="100%" height={280}>
-                            <BarChart data={budgets.filter(b => b.spent > 0)} margin={{ top: 10, right: 10, bottom: 0, left: -12 }} barCategoryGap="35%">
+                            <BarChart data={activeBudgets.filter(b => b.spent > 0)} margin={{ top: 10, right: 10, bottom: 0, left: -12 }} barCategoryGap="35%">
                                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#9CA3AF', fontFamily: 'Inter' }} axisLine={false} tickLine={false} />
                                 <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: '#9CA3AF', fontFamily: 'Inter' }} axisLine={false} tickLine={false} width={40} />
                                 <Tooltip content={<CustomTooltip />} />
                                 <Bar dataKey="spent" name="Spent" radius={[5, 5, 0, 0]} isAnimationActive animationDuration={800}>
-                                    {budgets.filter(b => b.spent > 0).map((b, i) => <Cell key={i} fill={b.pct > 90 ? '#EF4444' : b.color} />)}
+                                    {activeBudgets.filter(b => b.spent > 0).map((b, i) => <Cell key={i} fill={b.pct > 90 ? '#EF4444' : b.color} />)}
                                 </Bar>
                                 <Bar dataKey="limit" name="Limit" radius={[5, 5, 0, 0]} fill="#F3F4F6" isAnimationActive animationDuration={800} />
                             </BarChart>
@@ -762,12 +812,20 @@ const SubscriptionsTab = ({ txns }) => {
                             <div className="mm-card-title">Subscription Expenses</div>
                             <div className="mm-card-subtitle">Logged subscription transactions</div>
                         </div>
-                        {total > 0 && (
-                            <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>₹{total.toLocaleString('en-IN')}</div>
-                                <div style={{ fontSize: 11, color: '#9CA3AF' }}>Total logged</div>
-                            </div>
-                        )}
+                        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                            {total > 0 && (
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>₹{total.toLocaleString('en-IN')}</div>
+                                    <div style={{ fontSize: 11, color: '#9CA3AF' }}>Total logged</div>
+                                </div>
+                            )}
+                            <button
+                                onClick={() => window.location.href = '/transactions?category=subscriptions'}
+                                style={{ background: '#6c63ff', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 600, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
+                            >
+                                <PlusOutlined /> Add Subscription
+                            </button>
+                        </div>
                     </div>
                     {subs.length === 0 ? (
                         <Empty description="No subscription transactions — add one with category 'Subscriptions'" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '40px 0' }} />
@@ -789,7 +847,7 @@ const SubscriptionsTab = ({ txns }) => {
                 <div className="mm-card" style={{ padding: '20px 22px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
                         <TriangleAlert size={15} style={{ color: '#D97706' }} />
-                        <span style={{ fontSize: 13.5, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.2px' }}>Subscription Tips</span>
+                        <span style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.2px' }}>Subscription Tips</span>
                     </div>
                     {[
                         { icon: <Lightbulb size={15} style={{ color: '#D97706' }} />, text: 'Log each subscription under the "Subscriptions" category', sub: 'Enables accurate tracking' },
@@ -799,8 +857,8 @@ const SubscriptionsTab = ({ txns }) => {
                         <div key={i} style={{ display: 'flex', gap: 11, padding: '10px 0', borderBottom: i < 2 ? '1px solid #F3F4F6' : 'none' }}>
                             <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>{item.icon}</span>
                             <div>
-                                <div style={{ fontSize: 12.5, fontWeight: 600, color: '#374151' }}>{item.text}</div>
-                                <div style={{ fontSize: 11.5, color: '#9CA3AF', marginTop: 3 }}>{item.sub}</div>
+                                <div style={{ fontSize: 14.5, fontWeight: 600, color: '#374151' }}>{item.text}</div>
+                                <div style={{ fontSize: 13.5, color: '#9CA3AF', marginTop: 3 }}>{item.sub}</div>
                             </div>
                         </div>
                     ))}
@@ -814,6 +872,7 @@ const SubscriptionsTab = ({ txns }) => {
 export default function Dashboard() {
     const { user, updateProfile } = useAuth();
     const [txns, setTxns] = useState([]);
+    const [budgets, setBudgets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
 
@@ -850,14 +909,19 @@ export default function Dashboard() {
 
     const fetchTxns = useCallback(async () => {
         setLoading(true);
-        const { data, error } = await supabase
-            .from('transactions')
-            .select('*')
-            .order('date', { ascending: false });
-        if (error) {
+        const [txnRes, budgetRes] = await Promise.all([
+            supabase.from('transactions').select('*').order('date', { ascending: false }),
+            supabase.from('budgets').select('*')
+        ]);
+        if (txnRes.error) {
             message.error('Failed to load transactions.');
         } else {
-            setTxns(data ?? []);
+            setTxns(txnRes.data ?? []);
+        }
+        if (budgetRes.error) {
+            console.error('Failed to load budgets');
+        } else {
+            setBudgets(budgetRes.data ?? []);
         }
         setLoading(false);
     }, []);
@@ -872,7 +936,7 @@ export default function Dashboard() {
     ];
 
     return (
-        <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%', paddingTop: 10 }}>
+        <div style={{ width: '100%', paddingTop: 10 }}>
 
             {/* Profile Modal */}
             <AnimatePresence>
@@ -945,7 +1009,7 @@ export default function Dashboard() {
             </div>
 
             {activeTab === 'overview' && <OverviewTab txns={txns} loading={loading} onRefresh={fetchTxns} />}
-            {activeTab === 'budget' && <BudgetTab txns={txns} />}
+            {activeTab === 'budget' && <BudgetTab txns={txns} budgets={budgets} />}
             {activeTab === 'subscriptions' && <SubscriptionsTab txns={txns} />}
         </div>
     );

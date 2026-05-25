@@ -248,7 +248,7 @@ export default function Analytics() {
     }
 
     return (
-        <div style={{ maxWidth: 1080, margin: '0 auto', width: '100%', paddingTop: 10 }}>
+        <div style={{ width: '100%', paddingTop: 10 }}>
 
             {/* Summary stat pills */}
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>

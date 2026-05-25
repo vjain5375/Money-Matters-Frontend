@@ -10,7 +10,6 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-*.local
 
 # Editor directories and files
 .vscode/*
@@ -23,8 +22,8 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment variables (DO NOT COMMIT)
-.env
+# ── Environment files ─────────────────────────────────────────────
+# .env.local     — local dev overrides (localhost URLs) — NEVER commit
+# .env.production — committed intentionally (only public API URLs + anon keys)
 .env.local
-.env.production
-.env.development
+*.local

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Input, Button, message } from 'antd';
-import { LockOutlined, CheckCircleOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { LockOutlined, CheckCircleOutlined, ArrowRightOutlined, WarningOutlined } from '@ant-design/icons';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
@@ -73,7 +73,7 @@ export default function ResetPassword() {
         return (
             <div style={S.page}>
                 <div style={S.card}>
-                    <div style={{ fontSize: 36, marginBottom: 16 }}>⚠️</div>
+                    <WarningOutlined style={{ fontSize: 40, color: '#f59e0b', marginBottom: 16 }} />
                     <div style={S.formTitle}>Link expired</div>
                     <div style={{ ...S.sub, marginTop: 8, marginBottom: 24 }}>
                         This reset link has expired or is invalid.<br />
@@ -204,30 +204,29 @@ const S = {
     page: {
         minHeight: '100vh', display: 'flex',
         alignItems: 'center', justifyContent: 'center',
-        background: 'linear-gradient(145deg, #f0f0ff 0%, #f9fafb 100%)',
-        fontFamily: "'Inter', sans-serif", padding: 24,
+        background: '#0B0F19',
+        fontFamily: "'IBM Plex Sans', system-ui, sans-serif", padding: 24,
     },
     card: {
-        background: '#fff', borderRadius: 20, padding: '40px 44px',
+        background: '#131720', borderRadius: 12, padding: '40px 44px',
         width: '100%', maxWidth: 400,
-        boxShadow: '0 8px 40px rgba(91,82,240,0.10), 0 1px 4px rgba(0,0,0,0.05)',
+        border: '1px solid #252D3D',
     },
-    logoRow: { display: 'flex', alignItems: 'center', gap: 9, marginBottom: 32 },
+    logoRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 32 },
     logoIcon: {
-        width: 32, height: 32,
-        background: 'linear-gradient(145deg, #5b52f0, #7c6ffa)',
+        width: 28, height: 28,
+        background: '#6366F1',
         borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 3px 12px rgba(91,82,240,0.4)',
     },
-    logoText: { fontSize: 16, fontWeight: 800, color: '#111827', letterSpacing: '-0.4px' },
-    formTitle: { fontSize: 22, fontWeight: 800, color: '#111827', letterSpacing: '-0.5px' },
-    sub: { fontSize: 13.5, color: '#6b7280', lineHeight: 1.6 },
-    label: { fontSize: 13, fontWeight: 600, color: '#374151' },
-    input: { height: 44, borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 14 },
+    logoText: { fontSize: 15, fontWeight: 700, color: '#F1F5F9', letterSpacing: '-0.2px' },
+    formTitle: { fontSize: 22, fontWeight: 700, color: '#F1F5F9', letterSpacing: '-0.3px' },
+    sub: { fontSize: 13.5, color: '#64748B', lineHeight: 1.6 },
+    label: { fontSize: 13, fontWeight: 500, color: '#94A3B8' },
+    input: { height: 46, borderRadius: 8, border: '1px solid #252D3D', fontSize: 14, background: '#0B0F19', color: '#F1F5F9' },
     btn: {
-        height: 46, borderRadius: 10,
-        background: 'linear-gradient(135deg, #5b52f0 0%, #7c6ffa 100%)',
-        border: 'none', fontWeight: 700, fontSize: 14,
-        boxShadow: '0 4px 16px rgba(91,82,240,0.35)',
+        height: 46, borderRadius: 8,
+        background: '#6366F1',
+        border: 'none', fontWeight: 600, fontSize: 14,
+        transition: 'background 150ms',
     },
 };
