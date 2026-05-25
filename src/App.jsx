@@ -20,6 +20,8 @@ import {
   Mail,
   ShieldCheck,
   FileText,
+  User,
+  CreditCard,
 } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AddTransaction from './components/AddTransaction';
@@ -634,9 +636,9 @@ function Header() {
                   <div style={{ fontSize: 12, color: '#6B7280', marginTop: 1 }}>{email}</div>
                 </div>
                 {[
-                  { label: '👤 Profile', action: () => navigate('/settings') },
-                  { label: '🔔 Notifications', action: () => setShowNotifDropdown(true) },
-                  { label: '💳 Billing', action: () => message.info('Free plan — upgrade coming soon!') },
+                  { label: 'Profile', icon: <User size={14} style={{ marginRight: 8, color: '#6366F1' }} />, action: () => navigate('/settings') },
+                  { label: 'Notifications', icon: <Bell size={14} style={{ marginRight: 8, color: '#6366F1' }} />, action: () => setShowNotifDropdown(true) },
+                  { label: 'Billing', icon: <CreditCard size={14} style={{ marginRight: 8, color: '#6366F1' }} />, action: () => message.info('Free plan — upgrade coming soon!') },
                 ].map((item) => (
                   <div
                     key={item.label}
@@ -644,21 +646,25 @@ function Header() {
                     style={{
                       padding: '9px 12px', fontSize: 13, color: '#374151',
                       fontWeight: 500, borderRadius: 8, cursor: 'pointer', transition: 'background 0.12s',
+                      display: 'flex',
+                      alignItems: 'center',
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = '#F9FAFB')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
+                    {item.icon}
                     {item.label}
                   </div>
                 ))}
                 <div style={{ borderTop: '1px solid #F3F4F6', marginTop: 4, paddingTop: 4 }}>
                   <div
                     onClick={handleSignOut}
-                    style={{ padding: '9px 12px', fontSize: 13, color: '#DC2626', fontWeight: 500, borderRadius: 8, cursor: 'pointer' }}
+                    style={{ padding: '9px 12px', fontSize: 13, color: '#DC2626', fontWeight: 500, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = '#FEF2F2')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    🚪 Sign Out
+                    <LogOut size={14} style={{ marginRight: 8, color: '#DC2626' }} />
+                    Sign Out
                   </div>
                 </div>
               </motion.div>

@@ -43,8 +43,8 @@ const ARTICLES = [
         
         • Go to the "Budgets" tab and select a category and monthly limit.
         • Our real-time notification engine triggers alert banners in the header:
-          - ⚠️ Budget Alert (Spent >= 80%): Warns you when you are approaching your limit.
-          - ⚠️ Budget Exceeded (Spent > 100%): Alerts you when you have gone over your limit.
+          - Budget Alert (Spent >= 80%): Warns you when you are approaching your limit.
+          - Budget Exceeded (Spent > 100%): Alerts you when you have gone over your limit.
         • If you increase your budget limit or delete expenses, the alert automatically disappears from your notifications tray.`
     },
     {
