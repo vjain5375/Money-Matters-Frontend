@@ -380,7 +380,8 @@ const S = {
         borderRadius: 16,
         border: '1px solid #252D3D',
         background: '#131720',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+        marginBottom: 64
     },
     supportLayout: {
         display: 'flex',
