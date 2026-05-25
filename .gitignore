@@ -25,5 +25,7 @@ dist-ssr
 # ── Environment files ─────────────────────────────────────────────
 # .env.local     — local dev overrides (localhost URLs) — NEVER commit
 # .env.production — committed intentionally (only public API URLs + anon keys)
+.env
 .env.local
 *.local
+
