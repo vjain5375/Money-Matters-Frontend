@@ -66,7 +66,7 @@ const HEADER_MAP = {
   '/budgets': { title: 'Budgets', subtitle: 'Set monthly limits and track spending' },
   '/stocks': { title: 'Stock Analyser', subtitle: '' },
   '/settings': { title: 'Settings', subtitle: 'Account & notification preferences' },
-  '/docs': { title: 'Help & Documentation', subtitle: 'Guides, tutorials, and support for Money Matters All' },
+  '/docs': { title: 'Help & Documentation', subtitle: 'Guides, tutorials, and support for Money Matters AI' },
 };
 
 /* ─── Helpers ─── */

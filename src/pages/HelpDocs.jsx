@@ -127,7 +127,7 @@ export default function HelpDocs() {
                         size="large"
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onSearch={(value) => setSearchQuery(value)}
-                        prefix={<SearchOutlined style={{ color: '#BFDBFE' }} />}
+                        prefix={<SearchOutlined style={{ color: '#94A3B8' }} />}
                         style={S.searchBar}
                     />
                 </div>
@@ -212,25 +212,25 @@ export default function HelpDocs() {
 
 const S = {
     hero: {
-        background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+        background: '#fff',
         borderRadius: 16,
         padding: '36px 24px',
         textAlign: 'center',
-        color: '#fff',
+        color: '#0F172A',
         marginBottom: 32,
-        border: '1px solid #334155',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+        border: '1px solid #E2E8F0',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)'
     },
     heroTitle: {
         fontSize: 28,
         fontWeight: 800,
-        color: '#fff',
+        color: '#0F172A',
         margin: '0 0 8px',
         fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif"
     },
     heroSub: {
         fontSize: 14,
-        color: '#94A3B8',
+        color: '#64748B',
         maxWidth: 500,
         margin: '0 auto 20px',
         lineHeight: 1.6
